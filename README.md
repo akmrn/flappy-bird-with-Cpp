@@ -1,33 +1,5 @@
-@%@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#:--:+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@%****#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@%#***%@@@@@@@@@@@@@@@@@@@@@@@
-@@@@%%%%%%+==+*@@@@@@@@@@@@@@@@@@@@@@@
-@@@#-=--+@%#*+%@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-%@@#----+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
+# fallpy bird clone with C++ and SDL3
+## about
 1- System & Game Loop Architecture:<br />
 **SDL3 Setup:** We configured and initialized the **SDL3** library and its image plugin (SDL_image) for window management, 2D graphics, and events.<br />
 **Frame Rate Stabilization (VSync):**: We enabled VSync to prevent screen tearing and synchronize frames with the monitor refresh rate.<br />
@@ -42,3 +14,6 @@
 **Spawn and horizontal movement:** The pipes move to the left at a constant speed on the X axis.<br />
 **Respawn mechanism:** We implemented logic so that when the pipe completely leaves the left side of the screen, its horizontal position is immediately transferred to the far right side of the screen (win_W) to form an infinite loop of obstacles.<br />
 **Geometric drawing of obstacles:** In each frame, we draw the top pipe and the bottom pipe as two solid green rectangles with mathematical calculations.<br />
+
+## Compile
+for compiling you need to install SDL3 first!
