@@ -65,7 +65,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 
-#include "constants.h"
+#include "include/constants.h"
 
 // obstacles struct
 struct obstacles{
