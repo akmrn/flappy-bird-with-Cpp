@@ -16,4 +16,4 @@
 **Geometric drawing of obstacles:** In each frame, we draw the top pipe and the bottom pipe as two solid green rectangles with mathematical calculations.<br />
 
 ## Compile
-for compiling you need to install SDL3 first!
+for compiling you need to install **[SDL3](https://www.libsdl.org/)** first!
