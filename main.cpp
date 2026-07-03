@@ -37,22 +37,22 @@
 -----------------------------------------------------------------------------
 - obstacles(pipes)                                     OBJECT
     - data
-        - position (x, y)                               [ ]
+        - position (x, y)                               [X]
         - size
-            - weidth                                    [ ]
-            - top height                                [ ]
-            - gap height                                [ ]
-        - velocityX (move left)                         [ ]
+            - weidth                                    [X]
+            - top height                                [X]
+            - gap height                                [X]
+        - velocityX (move left)                         [X]
         - texture                                       [ ]
     - setup
-        - load the obstacle image                       [ ]
+        - load the obstacle image                       [X]
     - update
-        - move left each frame                          [ ]
-        - respawn when off-screen                       [ ]
+        - move left each frame                          [X]
+        - respawn when off-screen                       [X]
         - randomize top pipe height                     [ ]
     - render
-        - draw top pipe                                 [ ]
-        - draw bottom pipe                              [ ]
+        - draw top pipe                                 [X]
+        - draw bottom pipe                              [X]
     - cleanup
         - destroy obstacle textures                     [ ]
 ----------------------------------------------------------------------------- 
@@ -66,6 +66,16 @@
 #include <SDL3_image/SDL_image.h>
 
 #include "constants.h"
+
+// obstacles struct
+struct obstacles{
+    float x;
+    float width;
+    float topHeight;
+    float gapHeight;
+    float velocityX;
+};
+
 int main()
 {
     // initialize SDL
@@ -119,6 +129,14 @@ int main()
     // player volacity
     float velocityY = 0.0f;
 
+    // obstacles setup
+    obstacles pipe;
+    pipe.x = (float)win_W; // come from right
+    pipe.width = 80.0f;
+    pipe.topHeight = 200.0f;
+    pipe.gapHeight = 170.0f;
+    pipe.velocityX = -200.0f; // move left each frame
+
     // game running flag
     SDL_Event event;
     bool isRun = true;
@@ -163,9 +181,41 @@ int main()
 
         // updating y => JUMP
         dst.y += velocityY * delta;
-        
+
+        // Pipe movement and resetting
+        pipe.x += pipe.velocityX * delta;
+
+        // When the pipe is completely off the left side of the screen, we return it to the right side
+        if(pipe.x + pipe.width < 0)
+        {
+            pipe.x = (float)win_W;
+            // next => randomizing
+        }
+
+        // cleaning the screen
         SDL_SetRenderDrawColor(renderer, 200, 250, 255, 255);
         SDL_RenderClear(renderer);
+
+        // render: top and bottom pipes
+        SDL_SetRenderDrawColor(renderer, 34, 139, 34, 255); // green color for pipes
+
+        // top pipe
+        SDL_FRect topPipeRect = {
+            pipe.x,
+            0.0f,
+            pipe.width,
+            pipe.topHeight};
+        SDL_RenderFillRect(renderer, &topPipeRect);
+
+        // bottom pipe
+        float bottomPipeY = pipe.topHeight + pipe.gapHeight;
+        float bottomPipeHeight = (float)win_H - bottomPipeY;
+        SDL_FRect bottomPipeRect = {
+            pipe.x,
+            bottomPipeY,
+            pipe.width,
+            bottomPipeHeight};
+        SDL_RenderFillRect(renderer, &bottomPipeRect);
 
         // draw the player textur
         SDL_RenderTexture(renderer, texture, nullptr, &dst);
