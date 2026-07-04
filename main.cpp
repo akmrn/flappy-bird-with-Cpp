@@ -49,7 +49,7 @@
     - update
         - move left each frame                          [X]
         - respawn when off-screen                       [X]
-        - randomize top pipe height                     [ ]
+        - randomize top pipe height                     [X]
     - render
         - draw top pipe                                 [X]
         - draw bottom pipe                              [X]
@@ -70,10 +70,19 @@
 #include "include/constants.h"
 #include "include/Pipe.h"
 
-
-int main()
+bool intersects(const SDL_FRect& a, const SDL_FRect& b)
 {
-    // seeding random
+    return (a.x < b.x + b.w &&
+            a.x + a.w > b.x &&
+            a.y < b.y + b.h &&
+            a.y + a.h > b.y);
+}
+
+int main(int argc, char** argv)
+{
+    (void)argc; (void)argv;
+
+    // seed RNG (once)
     srand((unsigned int)time(nullptr));
 
     // initialize SDL
@@ -105,7 +114,7 @@ int main()
     // VSync
     SDL_SetRenderVSync(renderer, 1);
     
-    // load image
+    // load player texture
     SDL_Texture * texture = IMG_LoadTexture(renderer, "assets/plane.png");               
     if (texture == nullptr) // error handeling
     {
@@ -128,14 +137,12 @@ int main()
     float velocityY = 0.0f;
 
     // obstacles setup
-    Pipe pipe((float)win_W, 80.0f, 170.0f, -200.0f);
+    Pipe pipe((float)win_W, 80.0f, 200.0f, -200.0f);
 
     // game running flag
     SDL_Event event;
     bool isRun = true;
-
-     // jump request
-    bool jumpRequested = false;
+    bool jumpRequested = false; // jump request
 
     // game loop
     while(isRun)
@@ -161,23 +168,38 @@ int main()
             }
         }
 
+        // jump action
         if (jumpRequested)
         {
             velocityY = -350.0f;
             jumpRequested = false;
         }
         
-        // velocityY
+        // physics
         velocityY += gravity * delta;
-
-        // updating y => JUMP
         dst.y += velocityY * delta;
-       
-        // cleaning the screen
+        
+        // update pipe
+        pipe.update(delta, (float)win_W, (float)win_H);
+
+        // collision
+        SDL_FRect rectTop = pipe.topRect();
+        SDL_FRect rectBottom = pipe.bottomRect((float)win_H);
+
+        bool hitTop    = intersects(dst, rectTop);
+        bool hitBottom = intersects(dst, rectBottom);
+        bool hitGround = (dst.y + dst.h >= (float)win_H);
+        bool hitCeil   = (dst.y <= 0.0f);
+
+        if (hitTop || hitBottom || hitGround || hitCeil)
+        {
+            SDL_Log("GAME OVER!");
+            //isRun = false;
+        }
+
+        // render
         SDL_SetRenderDrawColor(renderer, 200, 250, 255, 255);
         SDL_RenderClear(renderer);
-
-        pipe.update(delta, (float)win_W, (float)win_H);
 
         pipe.render(renderer, (float)win_H);
 
@@ -186,6 +208,7 @@ int main()
 
         SDL_RenderPresent(renderer);
     }
+
     // cleanup
     SDL_DestroyTexture(texture); // destroy player texture
     SDL_DestroyRenderer(renderer);
