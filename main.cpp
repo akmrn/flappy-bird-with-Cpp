@@ -62,22 +62,20 @@
 - game Menu                                             [ ]
 */
 
+#include <ctime>
+#include <cstdlib>
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 
 #include "include/constants.h"
+#include "include/Pipe.h"
 
-// obstacles struct
-struct obstacles{
-    float x;
-    float width;
-    float topHeight;
-    float gapHeight;
-    float velocityX;
-};
 
 int main()
 {
+    // seeding random
+    srand((unsigned int)time(nullptr));
+
     // initialize SDL
     if(!SDL_Init(SDL_INIT_VIDEO))
     {
@@ -130,12 +128,7 @@ int main()
     float velocityY = 0.0f;
 
     // obstacles setup
-    obstacles pipe;
-    pipe.x = (float)win_W; // come from right
-    pipe.width = 80.0f;
-    pipe.topHeight = 200.0f;
-    pipe.gapHeight = 170.0f;
-    pipe.velocityX = -200.0f; // move left each frame
+    Pipe pipe((float)win_W, 80.0f, 170.0f, -200.0f);
 
     // game running flag
     SDL_Event event;
@@ -174,48 +167,19 @@ int main()
             jumpRequested = false;
         }
         
-        // gravity and delta
-        float delta = 1.0f / 60.0f;
-        const float gravity = 900.0f;
+        // velocityY
         velocityY += gravity * delta;
 
         // updating y => JUMP
         dst.y += velocityY * delta;
-
-        // Pipe movement and resetting
-        pipe.x += pipe.velocityX * delta;
-
-        // When the pipe is completely off the left side of the screen, we return it to the right side
-        if(pipe.x + pipe.width < 0)
-        {
-            pipe.x = (float)win_W;
-            // next => randomizing
-        }
-
+       
         // cleaning the screen
         SDL_SetRenderDrawColor(renderer, 200, 250, 255, 255);
         SDL_RenderClear(renderer);
 
-        // render: top and bottom pipes
-        SDL_SetRenderDrawColor(renderer, 34, 139, 34, 255); // green color for pipes
+        pipe.update(delta, (float)win_W, (float)win_H);
 
-        // top pipe
-        SDL_FRect topPipeRect = {
-            pipe.x,
-            0.0f,
-            pipe.width,
-            pipe.topHeight};
-        SDL_RenderFillRect(renderer, &topPipeRect);
-
-        // bottom pipe
-        float bottomPipeY = pipe.topHeight + pipe.gapHeight;
-        float bottomPipeHeight = (float)win_H - bottomPipeY;
-        SDL_FRect bottomPipeRect = {
-            pipe.x,
-            bottomPipeY,
-            pipe.width,
-            bottomPipeHeight};
-        SDL_RenderFillRect(renderer, &bottomPipeRect);
+        pipe.render(renderer, (float)win_H);
 
         // draw the player textur
         SDL_RenderTexture(renderer, texture, nullptr, &dst);
