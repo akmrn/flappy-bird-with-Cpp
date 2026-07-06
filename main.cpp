@@ -57,7 +57,7 @@
         - destroy obstacle textures                     [ ]
 ----------------------------------------------------------------------------- 
 - player has collision with obstacle                    [X] COLLISION
-- when player collides with obstacle -> lose            [ ] RULE
+- when player collides with obstacle -> lose            [X] RULE
 - game Sound                                            [ ]
 - game Menu                                             [ ]
 */
@@ -66,6 +66,7 @@
 #include <cstdlib>
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 #include "include/constants.h"
 #include "include/Pipe.h"
@@ -100,6 +101,13 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // initialize SDL_ttf
+    if(!TTF_Init())
+    {
+        SDL_Log("TTF_Init Failed: %s", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
     // create window 
     SDL_Window * window = SDL_CreateWindow("Flappy bird", win_W, win_H, 0);
     if(!window)
@@ -122,6 +130,7 @@ int main(int argc, char** argv)
     // VSync
     SDL_SetRenderVSync(renderer, 1);
     
+    //======================PLAYER=========================================
     // load player texture
     SDL_Texture * texture = IMG_LoadTexture(renderer, "assets/plane.png");               
     if (texture == nullptr) // error handeling
@@ -132,7 +141,6 @@ int main(int argc, char** argv)
         SDL_Quit();
         return 1;
     }
-
     // player p and s define 
     SDL_FRect dst;
     // position
@@ -143,9 +151,68 @@ int main(int argc, char** argv)
     dst.h = 73;
     // player volacity
     float velocityY = 0.0f;
+    //=====================================================================
 
+    //======================FONT===========================================
+    // load font
+    TTF_Font* gameOverFont = TTF_OpenFont("assets/Bitcount.ttf", 72.0f);
+    TTF_Font* restartFont = TTF_OpenFont("assets/Anton.ttf", 22.0f);
+    if(!gameOverFont || !restartFont)
+    {
+        SDL_Log("failed to load font! check path: %s", SDL_GetError());
+    }
+    SDL_Texture* gameOverTexture = nullptr;
+    SDL_Texture* restartTextTexture = nullptr;
+
+    SDL_FRect gameOverRect{};
+    SDL_FRect restartTextRect{};
+
+    SDL_Color whiteColor = {255, 255, 255, 255};
+
+    // Create the GameOver text in advance (to avoid creating and destroying the texture every frame)
+    if(gameOverFont)
+    {
+        SDL_Surface* surface = TTF_RenderText_Blended(gameOverFont, "GAME OVER", 0, whiteColor);
+        if(surface)
+        {
+            gameOverTexture = SDL_CreateTextureFromSurface(renderer, surface);
+
+            //textBox
+            gameOverRect.w = (float)surface->w;
+            gameOverRect.h = (float)surface->h;
+
+            //Centering text
+            gameOverRect.x = ((float)win_W - gameOverRect.w) / 2.0f;
+            gameOverRect.y = 210.0f;
+
+            SDL_DestroySurface(surface);
+        }
+    }
+
+    if(restartFont)
+    {
+        SDL_Surface* surface = TTF_RenderText_Blended(restartFont, "Press Space or Left Click to Restart", 0, whiteColor);
+        if(surface)
+        {
+            restartTextTexture = SDL_CreateTextureFromSurface(renderer, surface);
+
+            //textBox
+            restartTextRect.w = (float)surface->w;
+            restartTextRect.h = (float)surface->h;
+
+            //Centering text
+            restartTextRect.x = ((float)win_W - restartTextRect.w) / 2.0f;
+            restartTextRect.y = (gameOverRect.y + gameOverRect.h) + 20.0f;
+
+            SDL_DestroySurface(surface);
+        }
+    }
+    //=====================================================================
+
+    //======================OBSTACLES======================================
     // obstacles setup
     Pipe pipe((float)win_W, 80.0f, 200.0f, -200.0f);
+    //=====================================================================
 
     // game running flag
     SDL_Event event;
@@ -232,22 +299,49 @@ int main(int argc, char** argv)
         pipe.render(renderer, (float)win_H);
 
         // draw the player textur
-        SDL_RenderTexture(renderer, texture, nullptr, &dst);
+        if(texture)
+            SDL_RenderTexture(renderer, texture, nullptr, &dst);
 
+        // game over
         if (state == GameState::GameOver)
-        {
+        {   
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND); // A semi-transparent black background for better text readability
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 180);
-            SDL_FRect box{200, 220, 400, 120};
-            SDL_RenderFillRect(renderer, &box);
+            SDL_FRect overlay{0.0f, 0.0f, (float)win_W, (float)win_H};
+            SDL_RenderFillRect(renderer, &overlay);
+
+            if (gameOverTexture)
+            {
+                SDL_RenderTexture(renderer, gameOverTexture, nullptr, &gameOverRect);
+            }
+
+            if (restartTextTexture)
+            {
+                SDL_RenderTexture(renderer, restartTextTexture, nullptr, &restartTextRect);
+            }
         }
         
         SDL_RenderPresent(renderer);
     }
 
     // cleanup
-    SDL_DestroyTexture(texture); // destroy player texture
+    if (restartTextTexture)
+        SDL_DestroyTexture(restartTextTexture);
+
+    if (gameOverTexture)
+        SDL_DestroyTexture(gameOverTexture);
+
+    if (restartFont)
+        TTF_CloseFont(restartFont);
+
+    if (gameOverFont)
+        TTF_CloseFont(gameOverFont);
+
+    if (texture)
+        SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    TTF_Quit();
     SDL_Quit();
     return 0;
 }
@@ -258,7 +352,5 @@ void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY)
     dst.y = 150.0f;
     velocityY = 0.0f;
 
-    pipe = Pipe((float)win_W, 88.0f, 200.0f, -200.0f);
-
-    srand((unsigned int)time(nullptr)); 
+    pipe = Pipe((float)win_W, 80.0f, 200.0f, -200.0f);
 }
