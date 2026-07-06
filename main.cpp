@@ -57,7 +57,8 @@
         - destroy obstacle textures                     [ ]
 ----------------------------------------------------------------------------- 
 - player has collision with obstacle                    [X] COLLISION
-- when player collides with obstacle -> lose            [X] RULE
+- when player collides with obstacle -> lose            [X] 
+- score system                                          [ ] 
 - game Sound                                            [ ]
 - game Menu                                             [ ]
 */
@@ -276,10 +277,10 @@ int main(int argc, char** argv)
             SDL_FRect rectTop = pipe.topRect();
             SDL_FRect rectBottom = pipe.bottomRect((float)win_H);
 
-            bool hitTop    = intersects(dst, rectTop);
-            bool hitBottom = intersects(dst, rectBottom);
-            bool hitGround = (dst.y + dst.h >= (float)win_H);
-            bool hitCeil   = (dst.y <= 0.0f);
+            hitTop    = intersects(dst, rectTop);
+            hitBottom = intersects(dst, rectBottom);
+            hitGround = (dst.y + dst.h >= (float)win_H);
+            hitCeil   = (dst.y <= 0.0f);
 
             if (hitTop || hitBottom || hitGround || hitCeil)
                 state = GameState::GameOver;
@@ -306,7 +307,7 @@ int main(int argc, char** argv)
         if (state == GameState::GameOver)
         {   
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND); // A semi-transparent black background for better text readability
-            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 180);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
             SDL_FRect overlay{0.0f, 0.0f, (float)win_W, (float)win_H};
             SDL_RenderFillRect(renderer, &overlay);
 
