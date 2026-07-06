@@ -56,7 +56,7 @@
     - cleanup
         - destroy obstacle textures                     [ ]
 ----------------------------------------------------------------------------- 
-- player has collision with obstacle                    [ ] COLLISION
+- player has collision with obstacle                    [X] COLLISION
 - when player collides with obstacle -> lose            [ ] RULE
 - game Sound                                            [ ]
 - game Menu                                             [ ]
@@ -70,6 +70,12 @@
 #include "include/constants.h"
 #include "include/Pipe.h"
 
+enum class GameState
+{
+    Playing,
+    GameOver
+};
+
 bool intersects(const SDL_FRect& a, const SDL_FRect& b)
 {
     return (a.x < b.x + b.w &&
@@ -77,6 +83,8 @@ bool intersects(const SDL_FRect& a, const SDL_FRect& b)
             a.y < b.y + b.h &&
             a.y + a.h > b.y);
 }
+
+void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY);
 
 int main(int argc, char** argv)
 {
@@ -143,6 +151,8 @@ int main(int argc, char** argv)
     SDL_Event event;
     bool isRun = true;
     bool jumpRequested = false; // jump request
+    GameState state = GameState::Playing;
+    bool restartRequested = false;
 
     // game loop
     while(isRun)
@@ -156,45 +166,63 @@ int main(int argc, char** argv)
             }
 
             // space requests jump
-            if(event.type == SDL_EVENT_KEY_DOWN)
+            if(event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE)
             {
-                if(event.key.key == SDLK_SPACE)  jumpRequested = true;
+                jumpRequested = true;
             }
 
             // left click requests jump
-            if(event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+            if(event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT)
             {
-                if(event.button.button == SDL_BUTTON_LEFT)  jumpRequested = true;
+                jumpRequested = true;
             }
+
+            if(state == GameState::GameOver)
+            {
+                if(event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE)
+                    restartRequested = true;
+
+                if(event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT)
+                    restartRequested = true;
+            }
+
         }
 
-        // jump action
-        if (jumpRequested)
+        bool hitTop = false, hitBottom = false, hitGround = false, hitCeil = false;
+        if(state == GameState::Playing)
         {
-            velocityY = -350.0f;
-            jumpRequested = false;
+            // jump action
+            if (jumpRequested)
+            {
+                velocityY = -350.0f;
+                jumpRequested = false;
+            }
+
+            // physics
+            velocityY += gravity * delta;
+            dst.y += velocityY * delta;
+            
+            // update pipe
+            pipe.update(delta, (float)win_W, (float)win_H);
+
+            // collision
+            SDL_FRect rectTop = pipe.topRect();
+            SDL_FRect rectBottom = pipe.bottomRect((float)win_H);
+
+            bool hitTop    = intersects(dst, rectTop);
+            bool hitBottom = intersects(dst, rectBottom);
+            bool hitGround = (dst.y + dst.h >= (float)win_H);
+            bool hitCeil   = (dst.y <= 0.0f);
+
+            if (hitTop || hitBottom || hitGround || hitCeil)
+                state = GameState::GameOver;
         }
-        
-        // physics
-        velocityY += gravity * delta;
-        dst.y += velocityY * delta;
-        
-        // update pipe
-        pipe.update(delta, (float)win_W, (float)win_H);
 
-        // collision
-        SDL_FRect rectTop = pipe.topRect();
-        SDL_FRect rectBottom = pipe.bottomRect((float)win_H);
-
-        bool hitTop    = intersects(dst, rectTop);
-        bool hitBottom = intersects(dst, rectBottom);
-        bool hitGround = (dst.y + dst.h >= (float)win_H);
-        bool hitCeil   = (dst.y <= 0.0f);
-
-        if (hitTop || hitBottom || hitGround || hitCeil)
+        if(restartRequested)
         {
-            SDL_Log("GAME OVER!");
-            //isRun = false;
+            restartGame(pipe, dst, velocityY);
+            state = GameState::Playing;
+            restartRequested = false;
         }
 
         // render
@@ -206,6 +234,13 @@ int main(int argc, char** argv)
         // draw the player textur
         SDL_RenderTexture(renderer, texture, nullptr, &dst);
 
+        if (state == GameState::GameOver)
+        {
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 180);
+            SDL_FRect box{200, 220, 400, 120};
+            SDL_RenderFillRect(renderer, &box);
+        }
+        
         SDL_RenderPresent(renderer);
     }
 
@@ -215,4 +250,15 @@ int main(int argc, char** argv)
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
+}
+
+void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY)
+{
+    dst.x = 150.0f;
+    dst.y = 150.0f;
+    velocityY = 0.0f;
+
+    pipe = Pipe((float)win_W, 88.0f, 200.0f, -200.0f);
+
+    srand((unsigned int)time(nullptr)); 
 }
