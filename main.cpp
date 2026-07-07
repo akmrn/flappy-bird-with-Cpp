@@ -72,6 +72,7 @@
 
 #include "include/constants.h"
 #include "include/Pipe.h"
+#include "include/init.h"
 
 enum class GameState
 {
@@ -96,20 +97,8 @@ int main(int argc, char** argv)
     // seed RNG (once)
     srand((unsigned int)time(nullptr));
 
-    // initialize SDL
-    if(!SDL_Init(SDL_INIT_VIDEO))
-    {
-        SDL_Log("INIT Failed: %s", SDL_GetError());
-        return 1;
-    }
-
-    // initialize SDL_ttf
-    if(!TTF_Init())
-    {
-        SDL_Log("TTF_Init Failed: %s", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
+    init();
+    
     // create window 
     SDL_Window * window = SDL_CreateWindow("Flappy bird", win_W, win_H, 0);
     if(!window)
@@ -375,8 +364,7 @@ int main(int argc, char** argv)
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
-    TTF_Quit();
-    SDL_Quit();
+    quit();
     return 0;
 }
 
