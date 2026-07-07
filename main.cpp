@@ -18,6 +18,7 @@
         - load the player image                         [X]
     - render
         - draw the image                                [X]
+        - animation system                              [X]
     - cleanup
         - destroy player texture                        [X]
 -----------------------------------------------------------------------------
@@ -133,15 +134,28 @@ int main(int argc, char** argv)
     
     //======================PLAYER=========================================
     // load player texture
-    SDL_Texture * texture = IMG_LoadTexture(renderer, "assets/plane.png");               
-    if (texture == nullptr) // error handeling
+    SDL_Texture * playerFrame1 = IMG_LoadTexture(renderer, "assets/bird-1.png"); 
+    SDL_Texture * playerFrame2 = IMG_LoadTexture(renderer, "assets/bird-2.png");
+
+    if (playerFrame1 == nullptr || playerFrame2 == nullptr) // error handeling
     {
         SDL_Log("Failed to load player image: %s", SDL_GetError());
+        if (playerFrame1) SDL_DestroyTexture(playerFrame1);
+        if (playerFrame2) SDL_DestroyTexture(playerFrame2);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
     }
+
+    // A variable that holds the current texture to render at each frame.
+    SDL_Texture* activePlayerTexture = playerFrame1;
+
+    // animation variables
+    float animTimer = 0.0f;
+    constexpr float animSpeed = 0.15f;
+    int currentFrameIndex = 0;
+
     // player p and s define 
     SDL_FRect dst;
     // position
@@ -270,6 +284,17 @@ int main(int argc, char** argv)
             velocityY += gravity * delta;
             dst.y += velocityY * delta;
             
+            // player animation system
+            animTimer += delta;
+            if(animTimer >= animSpeed)
+            {
+                animTimer = 0.0f;
+                currentFrameIndex = (currentFrameIndex + 1) % 2; // switch between 0 and 1
+
+                if(currentFrameIndex == 0) activePlayerTexture = playerFrame1;
+                else activePlayerTexture = playerFrame2;
+            }
+
             // update pipe
             pipe.update(delta, (float)win_W, (float)win_H);
 
@@ -291,6 +316,11 @@ int main(int argc, char** argv)
             restartGame(pipe, dst, velocityY);
             state = GameState::Playing;
             restartRequested = false;
+
+            // reset the animation
+            animTimer = 0.0f;
+            currentFrameIndex = 0;
+            activePlayerTexture = playerFrame1;
         }
 
         // render
@@ -300,8 +330,8 @@ int main(int argc, char** argv)
         pipe.render(renderer, (float)win_H);
 
         // draw the player textur
-        if(texture)
-            SDL_RenderTexture(renderer, texture, nullptr, &dst);
+        if(activePlayerTexture)
+            SDL_RenderTexture(renderer, activePlayerTexture, nullptr, &dst);
 
         // game over
         if (state == GameState::GameOver)
@@ -338,8 +368,11 @@ int main(int argc, char** argv)
     if (gameOverFont)
         TTF_CloseFont(gameOverFont);
 
-    if (texture)
-        SDL_DestroyTexture(texture);
+    if (playerFrame1)
+        SDL_DestroyTexture(playerFrame1);
+    if (playerFrame2)
+        SDL_DestroyTexture(playerFrame2);
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     TTF_Quit();
