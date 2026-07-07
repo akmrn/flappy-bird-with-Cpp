@@ -25,6 +25,7 @@ class Pipe
         float width() const { return m_width; }
         float gapHeight() const { return m_gapHeight; }
         float topHeight() const { return m_topHeight; }
+        bool m_passed = false;
 
     private:
         void respawn(float windowW, float windowH);

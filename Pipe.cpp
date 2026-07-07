@@ -55,6 +55,7 @@ Pipe::Pipe(float startX, float width, float gapHeight, float speedX, float minEd
     {
         m_x = windowW;
         randomizeTopHeight(windowH);
+        m_passed = false;
     }
 
     void Pipe::randomizeTopHeight(float windowH)

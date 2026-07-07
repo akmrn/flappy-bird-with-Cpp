@@ -88,7 +88,7 @@ bool intersects(const SDL_FRect& a, const SDL_FRect& b)
             a.y + a.h > b.y);
 }
 
-void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY);
+void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, int& score);
 
 int main(int argc, char** argv)
 {
@@ -218,6 +218,9 @@ int main(int argc, char** argv)
     Pipe pipe((float)win_W, 80.0f, 200.0f, -200.0f);
     //=====================================================================
 
+    // score counter
+    int score = 0;
+
     // game running flag
     SDL_Event event;
     bool isRun = true;
@@ -287,6 +290,14 @@ int main(int argc, char** argv)
             // update pipe
             pipe.update(delta, (float)win_W, (float)win_H);
 
+            // score logic
+            if(!pipe.m_passed && pipe.topRect().x + pipe.topRect().w < dst.x)
+            {
+                score ++;
+                pipe.m_passed = true;
+                SDL_Log("score: %d", score);
+            }
+
             // collision
             SDL_FRect rectTop = pipe.topRect();
             SDL_FRect rectBottom = pipe.bottomRect((float)win_H);
@@ -302,7 +313,7 @@ int main(int argc, char** argv)
 
         if(restartRequested)
         {
-            restartGame(pipe, dst, velocityY);
+            restartGame(pipe, dst, velocityY, score);
             state = GameState::Playing;
             restartRequested = false;
 
@@ -368,11 +379,13 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY)
+void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, int& score)
 {
     dst.x = 150.0f;
     dst.y = 150.0f;
     velocityY = 0.0f;
 
+    score = 0; //reset score
     pipe = Pipe((float)win_W, 80.0f, 200.0f, -200.0f);
+    pipe.m_passed = false;
 }
