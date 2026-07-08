@@ -1,7 +1,13 @@
 #include "scoreSystem.h"
 
-ScoreSystem::ScoreSystem() 
-    : m_score(0), m_font(nullptr), m_texture(nullptr), m_rect{20.0f, 20.0f, 0.0f, 0.0f}, m_fontSize(28.0f)
+ScoreSystem::ScoreSystem() :
+    m_score(0),
+    m_highScore(0),
+    m_saveFilePath("highscore.txt"),
+    m_font(nullptr),
+    m_texture(nullptr),
+    m_rect{20.0f, 20.0f, 0.0f, 0.0f},
+    m_fontSize(28.0f)
     {
     }
     ScoreSystem::~ScoreSystem()
@@ -9,8 +15,45 @@ ScoreSystem::ScoreSystem()
         cleanup();
     }
 
-    bool ScoreSystem::init(SDL_Renderer* renderer, const char* fontPath, float fontSize)
+    void ScoreSystem::loadHighScore()
     {
+        std::ifstream file(m_saveFilePath);
+        if(file.is_open())
+        {
+            if(file >> m_highScore)
+            {
+                SDL_Log("ScoreSystem: High score loaded successfully: %d", m_highScore);
+            } else
+            {
+                m_highScore = 0; // if empty
+            }
+            file.close();
+        } else
+        {
+            m_highScore = 0;
+            SDL_Log("ScoreSystem: No save file found. starting with high score at 0.");
+        }
+    }
+
+    void ScoreSystem::saveHighScore()
+    {
+        std::ofstream file(m_saveFilePath);
+        if (file.is_open())
+        {
+            file << m_highScore;
+            file.close();
+            SDL_Log("ScoreSystem: High Score saved successfully: %d", m_highScore);
+        }
+        else
+        {
+            SDL_Log("ScoreSystem: Failed to open file for writing high score.");
+        }
+    }
+
+    bool ScoreSystem::init(SDL_Renderer* renderer, const char* fontPath, float fontSize, const std::string& savePath)
+    {
+        m_saveFilePath = savePath;
+
         m_fontSize = fontSize;
 
         m_font = TTF_OpenFont(fontPath, m_fontSize);
@@ -20,6 +63,9 @@ ScoreSystem::ScoreSystem()
             return false;
         }
 
+        loadHighScore();
+
+        m_score = 0;
         return updateTexture(renderer);
     }
 
@@ -40,8 +86,16 @@ ScoreSystem::ScoreSystem()
     void ScoreSystem::addPoint(SDL_Renderer* renderer)
     {
         m_score ++;
-        updateTexture(renderer);
+        
         SDL_Log("Score update: %d", m_score);
+        
+        if(m_score > m_highScore)
+        {
+            m_highScore = m_score;
+            saveHighScore();
+        }
+
+        updateTexture(renderer);
     }
 
     void ScoreSystem::reset(SDL_Renderer* renderer)
@@ -60,7 +114,7 @@ ScoreSystem::ScoreSystem()
     bool ScoreSystem::updateTexture(SDL_Renderer* renderer)
     {
         // Adding a space to beautify the score text
-        std::string scoreText = "Score" + std::to_string(m_score);
+        std::string scoreText = "Score: " + std::to_string(m_score) + "  Best: " + std::to_string(m_highScore);
         SDL_Color black = {0, 0, 0, 255};
 
         // Create a new surface

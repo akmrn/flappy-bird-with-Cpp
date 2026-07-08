@@ -221,7 +221,7 @@ int main(int argc, char** argv)
 
     // init score system 
     ScoreSystem scoreSystem;
-    if(!scoreSystem.init(renderer, "assets/Yuyu.ttf", 28.0f))
+    if(!scoreSystem.init(renderer, "assets/Yuyu.ttf", 28.0f, "highscore.txt"))
     {
         SDL_Log("ScoreSystem INIT Error: %s", SDL_GetError());
         return 1;
@@ -409,5 +409,4 @@ void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, ScoreSystem& scor
 
     scoreSystem.reset(renderer); //reset score
     pipe.reset((float)win_W, (float)win_H);
-    pipe.m_passed = false;
 }
