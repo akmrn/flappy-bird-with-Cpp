@@ -73,6 +73,7 @@
 #include "include/constants.h"
 #include "include/Pipe.h"
 #include "include/init.h"
+#include "scoreSystem.h"
 
 enum class GameState
 {
@@ -88,7 +89,7 @@ bool intersects(const SDL_FRect& a, const SDL_FRect& b)
             a.y + a.h > b.y);
 }
 
-void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, int& score);
+void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, ScoreSystem& scoreSystem, SDL_Renderer* renderer);
 
 int main(int argc, char** argv)
 {
@@ -218,8 +219,13 @@ int main(int argc, char** argv)
     Pipe pipe((float)win_W, 80.0f, 200.0f, -200.0f);
     //=====================================================================
 
-    // score counter
-    int score = 0;
+    // init score system 
+    ScoreSystem scoreSystem;
+    if(!scoreSystem.init(renderer, "assets/Yuyu.ttf", 28.0f))
+    {
+        SDL_Log("ScoreSystem INIT Error: %s", SDL_GetError());
+        return 1;
+    }
 
     // game running flag
     SDL_Event event;
@@ -291,11 +297,10 @@ int main(int argc, char** argv)
             pipe.update(delta, (float)win_W, (float)win_H);
 
             // score logic
-            if(!pipe.m_passed && pipe.topRect().x + pipe.topRect().w < dst.x)
+            if (!pipe.m_passed && (pipe.topRect().x + pipe.topRect().w) < dst.x)
             {
-                score ++;
                 pipe.m_passed = true;
-                SDL_Log("score: %d", score);
+                scoreSystem.addPoint(renderer);
             }
 
             // collision
@@ -313,7 +318,7 @@ int main(int argc, char** argv)
 
         if(restartRequested)
         {
-            restartGame(pipe, dst, velocityY, score);
+            restartGame(pipe, dst, velocityY, scoreSystem, renderer);
             state = GameState::Playing;
             restartRequested = false;
 
@@ -332,6 +337,8 @@ int main(int argc, char** argv)
         // draw the player textur
         if(activePlayerTexture)
             SDL_RenderTexture(renderer, activePlayerTexture, nullptr, &dst);
+
+        scoreSystem.render(renderer);
 
         // game over
         if (state == GameState::GameOver)
@@ -375,17 +382,18 @@ int main(int argc, char** argv)
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    scoreSystem.cleanup();
     quit();
     return 0;
 }
 
-void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, int& score)
+void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, ScoreSystem& scoreSystem, SDL_Renderer* renderer)
 {
     dst.x = 150.0f;
     dst.y = 150.0f;
     velocityY = 0.0f;
 
-    score = 0; //reset score
+    scoreSystem.reset(renderer); //reset score
     pipe = Pipe((float)win_W, 80.0f, 200.0f, -200.0f);
     pipe.m_passed = false;
 }
