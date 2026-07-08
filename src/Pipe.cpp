@@ -8,14 +8,22 @@ static float randomRange(float minVal, float maxVal)
     return minVal + t * (maxVal - minVal);
 }
 
-Pipe::Pipe(float startX, float width, float gapHeight, float speedX, float minEdgePadding):
+Pipe::Pipe(float startX, float width, float gapHeight, float speedX, float windowH, float minEdgePadding):
     m_x(startX),
     m_width(width),
     m_gapHeight(gapHeight),
     m_speedX(speedX),
     m_minEdgePadding(minEdgePadding)
     {
-        m_topHeight = 200.0f;
+        m_passed = false;
+        randomizeTopHeight(windowH);
+    }
+
+    void Pipe::reset(float startX, float windowH)
+    {
+        m_x = startX;
+        m_passed = false;
+        randomizeTopHeight(windowH);
     }
 
     void Pipe::update(float deltaSeconds, float windowW, float windowH)

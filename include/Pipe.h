@@ -9,8 +9,12 @@ class Pipe
             float width,
             float gapHeight,
             float speedX,
+            float windowH,
             float minEdgePadding = 50.0f);
         
+        // New function to reset the pipe without having to create a new object
+        void reset(float startX, float windowH);
+
         // Every frame is called
         void update(float deltaSeconds, float windowW, float windowH);
         

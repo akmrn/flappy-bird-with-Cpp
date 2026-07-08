@@ -216,7 +216,7 @@ int main(int argc, char** argv)
 
     //======================OBSTACLES======================================
     // obstacles setup
-    Pipe pipe((float)win_W, 80.0f, 200.0f, -200.0f);
+    Pipe pipe((float)win_W, 80.0f, 200.0f, -200.0f, (float)win_H);
     //=====================================================================
 
     // init score system 
@@ -233,10 +233,22 @@ int main(int argc, char** argv)
     bool jumpRequested = false; // jump request
     GameState state = GameState::Playing;
     bool restartRequested = false;
+    
+    // defining delta and scheduling variables
+    Uint64 lastTime = SDL_GetTicks();
+    float delta = 0.0f;
 
     // game loop
     while(isRun)
-    {
+    {   
+        // Calculate the actual delta time (convert milliseconds to seconds)
+        Uint64 currentTime = SDL_GetTicks();
+        delta = (float)(currentTime - lastTime) / 1000.0f;
+        lastTime = currentTime;
+
+        // To prevent sudden physics jumps in case of system lag
+        if(delta > 0.1f) delta = 0.1f;
+
         // event loop
         while(SDL_PollEvent(&event))
         {
@@ -321,6 +333,7 @@ int main(int argc, char** argv)
             restartGame(pipe, dst, velocityY, scoreSystem, renderer);
             state = GameState::Playing;
             restartRequested = false;
+            jumpRequested = false; // Be sure to reset the jump flag so it doesn't fly on restart
 
             // reset the animation
             animTimer = 0.0f;
@@ -363,11 +376,18 @@ int main(int argc, char** argv)
     }
 
     // cleanup
+    scoreSystem.cleanup();
+
     if (restartTextTexture)
         SDL_DestroyTexture(restartTextTexture);
 
     if (gameOverTexture)
         SDL_DestroyTexture(gameOverTexture);
+
+    if (playerFrame1)
+        SDL_DestroyTexture(playerFrame1);
+    if (playerFrame2)
+        SDL_DestroyTexture(playerFrame2);
 
     if (restartFont)
         TTF_CloseFont(restartFont);
@@ -375,14 +395,8 @@ int main(int argc, char** argv)
     if (gameOverFont)
         TTF_CloseFont(gameOverFont);
 
-    if (playerFrame1)
-        SDL_DestroyTexture(playerFrame1);
-    if (playerFrame2)
-        SDL_DestroyTexture(playerFrame2);
-
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
-    scoreSystem.cleanup();
     quit();
     return 0;
 }
@@ -394,6 +408,6 @@ void restartGame(Pipe& pipe, SDL_FRect& dst, float& velocityY, ScoreSystem& scor
     velocityY = 0.0f;
 
     scoreSystem.reset(renderer); //reset score
-    pipe = Pipe((float)win_W, 80.0f, 200.0f, -200.0f);
+    pipe.reset((float)win_W, (float)win_H);
     pipe.m_passed = false;
 }

@@ -59,16 +59,11 @@ ScoreSystem::ScoreSystem()
 
     bool ScoreSystem::updateTexture(SDL_Renderer* renderer)
     {
-        // free the memory
-        if(m_texture)
-        {
-            SDL_DestroyTexture(m_texture);
-            m_texture = nullptr;
-        }
-
+        // Adding a space to beautify the score text
         std::string scoreText = "Score" + std::to_string(m_score);
-        SDL_Color black = {0, 0, 0, 0};
+        SDL_Color black = {0, 0, 0, 255};
 
+        // Create a new surface
         SDL_Surface* surface = TTF_RenderText_Blended(m_font, scoreText.c_str(), 0, black);
         if(!surface)
         {
@@ -76,13 +71,21 @@ ScoreSystem::ScoreSystem()
             return false;
         }
 
-        m_texture = SDL_CreateTextureFromSurface(renderer, surface);
-        if(!m_texture)
+        // Create a new texture temporarily
+        SDL_Texture* newTexture = SDL_CreateTextureFromSurface(renderer, surface);
+        if(!newTexture)
         {
-            SDL_Log("ScoreSystem: Failled to create texture from surface: %s", SDL_GetError());
+            SDL_Log("ScoreSystem: Failed to create texture from surface: %s", SDL_GetError());
             SDL_DestroySurface(surface);
             return false;
         }
+
+        // Now that we are sure the new texture has been successfully created, we will delete the old one.
+        if(m_texture)
+        {
+            SDL_DestroyTexture(m_texture);
+        }
+        m_texture = newTexture;      
 
         m_rect.x = 20.0f;
         m_rect.y = 20.0f;
