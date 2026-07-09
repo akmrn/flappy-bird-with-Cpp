@@ -56,10 +56,10 @@
         - draw bottom pipe                              [X]
     - cleanup
         - destroy obstacle textures                     [ ]
------------------------------------------------------------------------------ 
+-----------------------------------------------------------------------------
 - player has collision with obstacle                    [X] COLLISION
-- when player collides with obstacle -> lose            [X] 
-- score system                                          [ ] 
+- when player collides with obstacle -> lose            [X]
+- score system                                          [ ]
 - game Sound                                            [ ]
 - game Menu                                             [ ]
 */
@@ -98,9 +98,12 @@ int main(int argc, char** argv)
     // seed RNG (once)
     srand((unsigned int)time(nullptr));
 
-    init();
-    
-    // create window 
+    if(!init())
+    {
+        return 1;
+    }
+
+    // create window
     SDL_Window * window = SDL_CreateWindow("Flappy bird", win_W, win_H, 0);
     if(!window)
     {
@@ -121,10 +124,10 @@ int main(int argc, char** argv)
 
     // VSync
     SDL_SetRenderVSync(renderer, 1);
-    
+
     //======================PLAYER=========================================
     // load player texture
-    SDL_Texture * playerFrame1 = IMG_LoadTexture(renderer, "assets/bird-1.png"); 
+    SDL_Texture * playerFrame1 = IMG_LoadTexture(renderer, "assets/bird-1.png");
     SDL_Texture * playerFrame2 = IMG_LoadTexture(renderer, "assets/bird-2.png");
 
     if (playerFrame1 == nullptr || playerFrame2 == nullptr) // error handeling
@@ -146,7 +149,7 @@ int main(int argc, char** argv)
     constexpr float animSpeed = 0.15f;
     int currentFrameIndex = 0;
 
-    // player p and s define 
+    // player p and s define
     SDL_FRect dst;
     // position
     dst.x = 150;
@@ -219,7 +222,7 @@ int main(int argc, char** argv)
     Pipe pipe((float)win_W, 80.0f, 200.0f, -200.0f, (float)win_H);
     //=====================================================================
 
-    // init score system 
+    // init score system
     ScoreSystem scoreSystem;
     if(!scoreSystem.init(renderer, "assets/Yuyu.ttf", 28.0f, "highscore.txt"))
     {
@@ -233,14 +236,14 @@ int main(int argc, char** argv)
     bool jumpRequested = false; // jump request
     GameState state = GameState::Playing;
     bool restartRequested = false;
-    
+
     // defining delta and scheduling variables
     Uint64 lastTime = SDL_GetTicks();
     float delta = 0.0f;
 
     // game loop
     while(isRun)
-    {   
+    {
         // Calculate the actual delta time (convert milliseconds to seconds)
         Uint64 currentTime = SDL_GetTicks();
         delta = (float)(currentTime - lastTime) / 1000.0f;
@@ -293,7 +296,7 @@ int main(int argc, char** argv)
             // physics
             velocityY += gravity * delta;
             dst.y += velocityY * delta;
-            
+
             // player animation system
             animTimer += delta;
             if(animTimer >= animSpeed)
@@ -355,7 +358,7 @@ int main(int argc, char** argv)
 
         // game over
         if (state == GameState::GameOver)
-        {   
+        {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND); // A semi-transparent black background for better text readability
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
             SDL_FRect overlay{0.0f, 0.0f, (float)win_W, (float)win_H};
@@ -371,33 +374,12 @@ int main(int argc, char** argv)
                 SDL_RenderTexture(renderer, restartTextTexture, nullptr, &restartTextRect);
             }
         }
-        
+
         SDL_RenderPresent(renderer);
     }
 
     // cleanup
-    scoreSystem.cleanup();
-
-    if (restartTextTexture)
-        SDL_DestroyTexture(restartTextTexture);
-
-    if (gameOverTexture)
-        SDL_DestroyTexture(gameOverTexture);
-
-    if (playerFrame1)
-        SDL_DestroyTexture(playerFrame1);
-    if (playerFrame2)
-        SDL_DestroyTexture(playerFrame2);
-
-    if (restartFont)
-        TTF_CloseFont(restartFont);
-
-    if (gameOverFont)
-        TTF_CloseFont(gameOverFont);
-
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    quit();
+    quit(window, renderer, gameOverFont, restartFont, playerFrame1, playerFrame2, gameOverTexture, restartTextTexture, scoreSystem);
     return 0;
 }
 
