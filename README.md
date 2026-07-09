@@ -1,6 +1,8 @@
 # fallpy bird clone with C++ and SDL3
 
-![Demo GIF](assets/game.gif)
+<p align="center">
+    ![Demo GIF](assets/game.gif)
+</p>
 
 ## about
 1- System & Game Loop Architecture:<br />
