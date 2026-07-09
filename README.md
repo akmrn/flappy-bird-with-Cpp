@@ -1,7 +1,7 @@
 # fallpy bird clone with C++ and SDL3
 
 <p align="center">
-    ![Demo GIF](assets/game.gif)
+    <img src="assets/game.gif" alt="Demo"><br>
 </p>
 
 ## about
