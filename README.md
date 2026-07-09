@@ -1,4 +1,7 @@
 # fallpy bird clone with C++ and SDL3
+
+![Demo GIF](assets/game.gif)
+
 ## about
 1- System & Game Loop Architecture:<br />
 **SDL3 Setup:** We configured and initialized the **SDL3** library and its image plugin (SDL_image) for window management, 2D graphics, and events.<br />
