@@ -86,9 +86,9 @@ ScoreSystem::ScoreSystem() :
     void ScoreSystem::addPoint(SDL_Renderer* renderer)
     {
         m_score ++;
-        
+
         SDL_Log("Score update: %d", m_score);
-        
+
         if(m_score > m_highScore)
         {
             m_highScore = m_score;
@@ -139,7 +139,7 @@ ScoreSystem::ScoreSystem() :
         {
             SDL_DestroyTexture(m_texture);
         }
-        m_texture = newTexture;      
+        m_texture = newTexture;
 
         m_rect.x = 20.0f;
         m_rect.y = 20.0f;

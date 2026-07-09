@@ -70,9 +70,9 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include "include/constants.h"
-#include "include/Pipe.h"
-#include "include/init.h"
+#include "constants.h"
+#include "Pipe.h"
+#include "init.h"
 #include "scoreSystem.h"
 
 enum class GameState
@@ -181,7 +181,10 @@ int main(int argc, char** argv)
     if(gameOverFont)
     {
         SDL_Surface* surface = TTF_RenderText_Blended(gameOverFont, "GAME OVER", 0, whiteColor);
-        if(surface)
+        if(!surface)
+        {
+            SDL_Log("Failed to render game over text: %s", SDL_GetError());
+        } else
         {
             gameOverTexture = SDL_CreateTextureFromSurface(renderer, surface);
 
@@ -200,7 +203,10 @@ int main(int argc, char** argv)
     if(restartFont)
     {
         SDL_Surface* surface = TTF_RenderText_Blended(restartFont, "Press Space or Left Click to Restart", 0, whiteColor);
-        if(surface)
+        if(!surface)
+        {
+            SDL_Log("Failed to render game over text: %s", SDL_GetError());
+        } else
         {
             restartTextTexture = SDL_CreateTextureFromSurface(renderer, surface);
 
@@ -227,6 +233,10 @@ int main(int argc, char** argv)
     if(!scoreSystem.init(renderer, "assets/Yuyu.ttf", 28.0f, "highscore.txt"))
     {
         SDL_Log("ScoreSystem INIT Error: %s", SDL_GetError());
+        quit(window, renderer, gameOverFont, restartFont,
+                 playerFrame1, playerFrame2,
+                 gameOverTexture, restartTextTexture,
+                 scoreSystem);
         return 1;
     }
 
@@ -312,9 +322,9 @@ int main(int argc, char** argv)
             pipe.update(delta, (float)win_W, (float)win_H);
 
             // score logic
-            if (!pipe.m_passed && (pipe.topRect().x + pipe.topRect().w) < dst.x)
+            if (!pipe.isPassed() && (pipe.topRect().x + pipe.topRect().w) < dst.x)
             {
-                pipe.m_passed = true;
+                pipe.setPassed(true);
                 scoreSystem.addPoint(renderer);
             }
 

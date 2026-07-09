@@ -24,7 +24,7 @@ inline bool init()
     return true;
 }
 
-inline void quit(SDL_Window * window, SDL_Renderer * renderer, TTF_Font* gameOverFont, TTF_Font* restartFont, SDL_Texture * playerFrame1, SDL_Texture * playerFrame2, SDL_Texture* gameOverTexture, SDL_Texture* restartTextTexture, ScoreSystem scoreSystem)
+inline void quit(SDL_Window * window, SDL_Renderer * renderer, TTF_Font* gameOverFont, TTF_Font* restartFont, SDL_Texture * playerFrame1, SDL_Texture * playerFrame2, SDL_Texture* gameOverTexture, SDL_Texture* restartTextTexture, ScoreSystem& scoreSystem)
 {
     scoreSystem.cleanup();
 
