@@ -1,4 +1,4 @@
-#include "scoreSystem.h"
+#include "ScoreSystem.h"
 
 ScoreSystem::ScoreSystem() :
     m_score(0),

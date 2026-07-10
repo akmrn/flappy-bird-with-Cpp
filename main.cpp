@@ -73,7 +73,7 @@
 #include "constants.h"
 #include "Pipe.h"
 #include "init.h"
-#include "scoreSystem.h"
+#include "ScoreSystem.h"
 
 enum class GameState
 {

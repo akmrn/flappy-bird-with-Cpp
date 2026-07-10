@@ -3,7 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include "scoreSystem.h"
+#include "ScoreSystem.h"
 
 class GameApp
 {
