@@ -59,7 +59,7 @@
 -----------------------------------------------------------------------------
 - player has collision with obstacle                    [X] COLLISION
 - when player collides with obstacle -> lose            [X]
-- score system                                          [ ]
+- score system                                          [X]
 - game Sound                                            [ ]
 - game Menu                                             [ ]
 */
@@ -98,46 +98,33 @@ int main(int argc, char** argv)
     // seed RNG (once)
     srand((unsigned int)time(nullptr));
 
-    if(!init())
-    {
-        return 1;
-    }
+    GameApp app;
 
-    // create window
-    SDL_Window * window = SDL_CreateWindow("Flappy bird", win_W, win_H, 0);
-    if(!window)
+    if (!app.init("Flappy bird", win_W, win_H))
     {
-        SDL_Log("Window Failed: %s", SDL_GetError());
-        SDL_Quit();
         return 1;
     }
 
     // creating renderer
-    SDL_Renderer * renderer = SDL_CreateRenderer(window, nullptr);
-     if(!renderer)
-    {
-        SDL_Log("RENDERER Failed: %s", SDL_GetError());
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
+    SDL_Renderer* renderer = app.getRenderer();
 
     // VSync
     SDL_SetRenderVSync(renderer, 1);
+    if (!SDL_SetRenderVSync(renderer, 1))
+    {
+        SDL_Log("Failed to enable VSync: %s", SDL_GetError());
+    }
 
     //======================PLAYER=========================================
     // load player texture
-    SDL_Texture * playerFrame1 = IMG_LoadTexture(renderer, "assets/bird-1.png");
-    SDL_Texture * playerFrame2 = IMG_LoadTexture(renderer, "assets/bird-2.png");
+    app.setPlayerFrame1(IMG_LoadTexture(renderer, "assets/bird-1.png"));
+    app.setPlayerFrame2(IMG_LoadTexture(renderer, "assets/bird-2.png"));
+    SDL_Texture* playerFrame1 = app.getPlayerFrame1();
+    SDL_Texture* playerFrame2 = app.getPlayerFrame2();
 
-    if (playerFrame1 == nullptr || playerFrame2 == nullptr) // error handeling
+    if (!playerFrame1 || !playerFrame2)
     {
         SDL_Log("Failed to load player image: %s", SDL_GetError());
-        if (playerFrame1) SDL_DestroyTexture(playerFrame1);
-        if (playerFrame2) SDL_DestroyTexture(playerFrame2);
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
         return 1;
     }
 
@@ -163,14 +150,16 @@ int main(int argc, char** argv)
 
     //======================FONT===========================================
     // load font
-    TTF_Font* gameOverFont = TTF_OpenFont("assets/Bitcount.ttf", 72.0f);
-    TTF_Font* restartFont = TTF_OpenFont("assets/Anton.ttf", 22.0f);
+    app.setGameOverFont(TTF_OpenFont("assets/Bitcount.ttf", 72.0f));
+    app.setRestartFont(TTF_OpenFont("assets/Anton.ttf", 22.0f));
+
+    TTF_Font* gameOverFont = app.getGameOverFont();
+    TTF_Font* restartFont = app.getRestartFont();
     if(!gameOverFont || !restartFont)
     {
         SDL_Log("failed to load font! check path: %s", SDL_GetError());
+            return 1;
     }
-    SDL_Texture* gameOverTexture = nullptr;
-    SDL_Texture* restartTextTexture = nullptr;
 
     SDL_FRect gameOverRect{};
     SDL_FRect restartTextRect{};
@@ -186,16 +175,20 @@ int main(int argc, char** argv)
             SDL_Log("Failed to render game over text: %s", SDL_GetError());
         } else
         {
-            gameOverTexture = SDL_CreateTextureFromSurface(renderer, surface);
+            app.setGameOverTexture(SDL_CreateTextureFromSurface(renderer, surface));
+            if(!app.getGameOverTexture())
+                    {
+                        SDL_Log("Failed to create game over texture: %s", SDL_GetError());
+                    } else
+                    {
+                        //textBox
+                        gameOverRect.w = (float)surface->w;
+                        gameOverRect.h = (float)surface->h;
 
-            //textBox
-            gameOverRect.w = (float)surface->w;
-            gameOverRect.h = (float)surface->h;
-
-            //Centering text
-            gameOverRect.x = ((float)win_W - gameOverRect.w) / 2.0f;
-            gameOverRect.y = 210.0f;
-
+                        //Centering text
+                        gameOverRect.x = ((float)win_W - gameOverRect.w) / 2.0f;
+                        gameOverRect.y = 210.0f;
+                    }
             SDL_DestroySurface(surface);
         }
     }
@@ -205,18 +198,23 @@ int main(int argc, char** argv)
         SDL_Surface* surface = TTF_RenderText_Blended(restartFont, "Press Space or Left Click to Restart", 0, whiteColor);
         if(!surface)
         {
-            SDL_Log("Failed to render game over text: %s", SDL_GetError());
+            SDL_Log("Failed to render restart text: %s", SDL_GetError());
         } else
         {
-            restartTextTexture = SDL_CreateTextureFromSurface(renderer, surface);
+            app.setRestartTextTexture(SDL_CreateTextureFromSurface(renderer, surface));
+            if(!app.getRestartTextTexture())
+            {
+                SDL_Log("Failed to create restart texture: %s", SDL_GetError());
+            } else
+            {
+                //textBox
+                restartTextRect.w = (float)surface->w;
+                restartTextRect.h = (float)surface->h;
 
-            //textBox
-            restartTextRect.w = (float)surface->w;
-            restartTextRect.h = (float)surface->h;
-
-            //Centering text
-            restartTextRect.x = ((float)win_W - restartTextRect.w) / 2.0f;
-            restartTextRect.y = (gameOverRect.y + gameOverRect.h) + 20.0f;
+                //Centering text
+                restartTextRect.x = ((float)win_W - restartTextRect.w) / 2.0f;
+                restartTextRect.y = (gameOverRect.y + gameOverRect.h) + 20.0f;
+            }
 
             SDL_DestroySurface(surface);
         }
@@ -229,14 +227,10 @@ int main(int argc, char** argv)
     //=====================================================================
 
     // init score system
-    ScoreSystem scoreSystem;
-    if(!scoreSystem.init(renderer, "assets/Yuyu.ttf", 28.0f, "highscore.txt"))
+    ScoreSystem& scoreSystem = app.getScoreSystem();
+    if (!scoreSystem.init(renderer, "assets/Yuyu.ttf", 28.0f, "highscore.txt"))
     {
         SDL_Log("ScoreSystem INIT Error: %s", SDL_GetError());
-        quit(window, renderer, gameOverFont, restartFont,
-                 playerFrame1, playerFrame2,
-                 gameOverTexture, restartTextTexture,
-                 scoreSystem);
         return 1;
     }
 
@@ -270,19 +264,20 @@ int main(int argc, char** argv)
                 isRun = false;
             }
 
-            // space requests jump
-            if(event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE)
+            if(state == GameState::Playing)
             {
-                jumpRequested = true;
-            }
+                // space requests jump
+                if(event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE)
+                {
+                    jumpRequested = true;
+                }
 
-            // left click requests jump
-            if(event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT)
-            {
-                jumpRequested = true;
-            }
-
-            if(state == GameState::GameOver)
+                // left click requests jump
+                if(event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT)
+                {
+                    jumpRequested = true;
+                }
+            } else // GameState::GameOver
             {
                 if(event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE)
                     restartRequested = true;
@@ -374,22 +369,20 @@ int main(int argc, char** argv)
             SDL_FRect overlay{0.0f, 0.0f, (float)win_W, (float)win_H};
             SDL_RenderFillRect(renderer, &overlay);
 
-            if (gameOverTexture)
+            if (app.getGameOverTexture())
             {
-                SDL_RenderTexture(renderer, gameOverTexture, nullptr, &gameOverRect);
+                SDL_RenderTexture(renderer, app.getGameOverTexture(), nullptr, &gameOverRect);
             }
 
-            if (restartTextTexture)
+            if (app.getRestartTextTexture())
             {
-                SDL_RenderTexture(renderer, restartTextTexture, nullptr, &restartTextRect);
+                SDL_RenderTexture(renderer, app.getRestartTextTexture(), nullptr, &restartTextRect);
             }
         }
 
         SDL_RenderPresent(renderer);
     }
 
-    // cleanup
-    quit(window, renderer, gameOverFont, restartFont, playerFrame1, playerFrame2, gameOverTexture, restartTextTexture, scoreSystem);
     return 0;
 }
 

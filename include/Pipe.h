@@ -29,15 +29,15 @@ class Pipe
         float width() const { return m_width; }
         float gapHeight() const { return m_gapHeight; }
         float topHeight() const { return m_topHeight; }
-        bool m_passed = false;
+
         bool isPassed() const { return m_passed; }
         void setPassed(bool passed) { m_passed = passed; }
 
     private:
         void respawn(float windowW, float windowH);
         void randomizeTopHeight(float windowH);
+        bool m_passed = false;
 
-    private:
         float m_x = 0.0f;
         float m_width = 0.0f;
         float m_topHeight = 0.0f;

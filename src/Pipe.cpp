@@ -15,7 +15,6 @@ Pipe::Pipe(float startX, float width, float gapHeight, float speedX, float windo
     m_speedX(speedX),
     m_minEdgePadding(minEdgePadding)
     {
-        m_passed = false;
         randomizeTopHeight(windowH);
     }
 
