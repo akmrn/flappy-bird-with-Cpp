@@ -37,7 +37,7 @@ void ScoreSystem::render(SDL_Renderer* renderer) {
 void ScoreSystem::refreshLabel() {
     m_label.setText(m_renderer, m_font.get(),
                     "Score: " + std::to_string(m_score) + "  Best: " + std::to_string(m_highScore),
-                    SDL_Color{255, 255, 255, 255});
+                    SDL_Color{20, 20, 20, 255});
 }
 
 void ScoreSystem::loadHighScore() {
