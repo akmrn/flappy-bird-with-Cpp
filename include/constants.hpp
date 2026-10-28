@@ -33,4 +33,7 @@ namespace cfg {
     inline constexpr float fixedStep = 1.0f / 120.0f;
     inline constexpr float maxFrameTime = 0.1f;
     inline constexpr float restartCooldown = 0.5f;
+
+    // Minimum distance between the pipe gap and the ceiling/ground
+    constexpr float pipeMargin = 80.0f;
 }

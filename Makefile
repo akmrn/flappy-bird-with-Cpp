@@ -7,7 +7,7 @@ LIBS = -lSDL3 -lSDL3_image -lSDL3_ttf
 TARGET = flappyBird.exe
 
 # Added src/Game.cpp to the source list
-SRCS = main.cpp src/Game.cpp src/Pipe.cpp src/ScoreSystem.cpp src/player.cpp
+SRCS = main.cpp src/Game.cpp src/Pipe.cpp src/ScoreSystem.cpp src/player.cpp src/Ground.cpp
 
 all: $(TARGET)
 

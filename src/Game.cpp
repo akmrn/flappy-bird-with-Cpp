@@ -28,23 +28,33 @@ namespace {
         return renderer;
     }
 
+    // Axis-aligned rectangle overlap test
     bool intersects(const SDL_FRect& a, const SDL_FRect& b) {
         return a.x < b.x + b.w && a.x + a.w > b.x &&
                a.y < b.y + b.h && a.y + a.h > b.y;
     }
 
     constexpr SDL_Color white{255, 255, 255, 255};
+
+    // Color used to clear the window, including the letterbox bars.
+    // Set it close to your background image's dominant color so bars are invisible.
+    constexpr SDL_Color letterboxColor{82, 102, 106, 255};
 }
 
 Game::Game()
     : m_window(createWindow()),
       m_renderer(createRenderer(m_window.get())),
+      m_textures(m_renderer.get()),
+      m_pipeTex(m_textures.tryGet(skin::pipe)),
+      m_backgroundTex(m_textures.tryGet(skin::background)),
+      m_groundTex(m_textures.tryGet(skin::ground)),
+      m_ground(m_groundTex),
       m_scoreSystem(m_renderer.get(), assets::loadFont("Yuyu.ttf", 28.0f),
                     assets::savePath("highscore.txt")),
-      m_player(m_renderer.get()),
+      m_player(m_textures.get(skin::bird1), m_textures.get(skin::bird2)),
       m_titleFont(assets::loadFont("Bitcount.ttf", 72.0f)),
-      m_hintFont(assets::loadFont("Anton.ttf", 22.0f)) {
-
+      m_hintFont(assets::loadFont("Anton.ttf", 22.0f))
+{
     // Static labels are rendered once and cached
     m_gameOverLabel.setText(m_renderer.get(), m_titleFont.get(), "GAME OVER", {255, 50, 50, 255});
     m_restartLabel.setText(m_renderer.get(), m_hintFont.get(),
@@ -82,7 +92,7 @@ void Game::run() {
         const Uint64 now = SDL_GetPerformanceCounter();
         float frameTime = static_cast<float>(static_cast<double>(now - last) / freq);
         last = now;
-        frameTime = std::min(frameTime, cfg::maxFrameTime);
+        frameTime = std::min(frameTime, cfg::maxFrameTime); // avoid spiral of death
 
         processEvents();
 
@@ -121,6 +131,7 @@ void Game::processEvents() {
             break;
 
         case SDL_EVENT_WINDOW_FOCUS_LOST:
+            // Auto-pause when the window loses focus
             if (m_state == State::Playing) m_state = State::Paused;
             break;
 
@@ -165,10 +176,21 @@ void Game::gameOver() {
 
 void Game::update(float dt) {
     if (m_state == State::GameOver) {
+        // Everything is frozen after a crash; only the restart cooldown ticks
         m_cooldown = std::max(0.0f, m_cooldown - dt);
         return;
     }
-    if (m_state != State::Playing) return;
+    if (m_state == State::Ready) {
+        // Slow idle scroll so the world feels alive before the first jump
+        m_ground.update(dt, cfg::pipeBaseSpeed);
+        return;
+    }
+    if (m_state != State::Playing) return; // Paused: nothing moves
+
+    const float speed = currentPipeSpeed();
+
+    // Ground scrolls at exactly the same speed as the pipes
+    m_ground.update(dt, speed);
 
     m_player.update(dt);
     const SDL_FRect box = m_player.hitbox();
@@ -179,11 +201,10 @@ void Game::update(float dt) {
         return;
     }
 
-    const float speed = currentPipeSpeed();
-
     for (Pipe& pipe : m_pipes) {
         pipe.update(dt, speed);
 
+        // Score when the pipe has fully passed the bird
         if (!pipe.isPassed() && pipe.right() < box.x) {
             pipe.setPassed(true);
             m_scoreSystem.addPoint();
@@ -207,24 +228,30 @@ void Game::update(float dt) {
 
 void Game::render() {
     SDL_Renderer* r = m_renderer.get();
-    const float cx = static_cast<float>(cfg::worldW) / 2.0f;
-    const float cy = static_cast<float>(cfg::worldH) / 2.0f;
+    const float worldW = static_cast<float>(cfg::worldW);
+    const float worldH = static_cast<float>(cfg::worldH);
+    const float cx = worldW / 2.0f;
+    const float cy = worldH / 2.0f;
 
-    // Clear the whole target (letterbox bars included)
-    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+    // Clear the whole target (letterbox bars included) with the background-like color
+    SDL_SetRenderDrawColor(r, letterboxColor.r, letterboxColor.g, letterboxColor.b, 255);
     SDL_RenderClear(r);
 
-    // Sky
-    SDL_SetRenderDrawColor(r, 200, 250, 255, 255);
-    SDL_FRect sky{0.0f, 0.0f, static_cast<float>(cfg::worldW), static_cast<float>(cfg::worldH)};
-    SDL_RenderFillRect(r, &sky);
+    // Background (image or solid sky color)
+    if (m_backgroundTex) {
+        SDL_FRect dst{0.0f, 0.0f, worldW, worldH};
+        SDL_RenderTexture(r, m_backgroundTex, nullptr, &dst);
+    } else {
+        SDL_SetRenderDrawColor(r, 200, 250, 255, 255);
+        SDL_FRect sky{0.0f, 0.0f, worldW, worldH};
+        SDL_RenderFillRect(r, &sky);
+    }
 
-    for (const Pipe& pipe : m_pipes) pipe.render(r);
+    // Pipes
+    for (const Pipe& pipe : m_pipes) pipe.render(r, m_pipeTex);
 
-    // Ground
-    SDL_SetRenderDrawColor(r, 222, 184, 135, 255);
-    SDL_FRect ground{0.0f, cfg::playHeight, static_cast<float>(cfg::worldW), cfg::groundHeight};
-    SDL_RenderFillRect(r, &ground);
+    // Scrolling ground (drawn over the pipe bottoms)
+    m_ground.render(r);
 
     m_player.render(r);
     m_scoreSystem.render(r);
@@ -233,10 +260,10 @@ void Game::render() {
         m_readyLabel.renderCentered(r, cx, cy + 100.0f);
     }
 
+    // Dim the scene behind pause / game over text
     if (m_state == State::Paused || m_state == State::GameOver) {
         SDL_SetRenderDrawColor(r, 0, 0, 0, 150);
-        SDL_FRect overlay{0.0f, 0.0f, static_cast<float>(cfg::worldW),
-                          static_cast<float>(cfg::worldH)};
+        SDL_FRect overlay{0.0f, 0.0f, worldW, worldH};
         SDL_RenderFillRect(r, &overlay);
 
         if (m_state == State::Paused) {
@@ -252,6 +279,7 @@ void Game::render() {
 
 void Game::resetGame() {
     m_player.reset();
+    m_ground.reset();
     spawnInitialPipes();
     m_scoreSystem.reset();
     m_state = State::Ready;
