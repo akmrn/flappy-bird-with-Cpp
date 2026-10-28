@@ -1,4 +1,5 @@
 #include "ScoreSystem.hpp"
+#include "constants.hpp"
 #include <fstream>
 #include <iostream>
 #include <utility>
@@ -36,8 +37,7 @@ void ScoreSystem::render(SDL_Renderer* renderer) {
 
 void ScoreSystem::refreshLabel() {
     m_label.setText(m_renderer, m_font.get(),
-                    "Score: " + std::to_string(m_score) + "  Best: " + std::to_string(m_highScore),
-                    SDL_Color{20, 20, 20, 255});
+                    "Score: " + std::to_string(m_score) + "  Best: " + std::to_string(m_highScore), cfg::black);
 }
 
 void ScoreSystem::loadHighScore() {

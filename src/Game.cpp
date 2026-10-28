@@ -34,8 +34,6 @@ namespace {
                a.y < b.y + b.h && a.y + a.h > b.y;
     }
 
-    constexpr SDL_Color white{255, 255, 255, 255};
-
     // Color used to clear the window, including the letterbox bars.
     // Set it close to your background image's dominant color so bars are invisible.
     constexpr SDL_Color letterboxColor{82, 102, 106, 255};
@@ -56,12 +54,12 @@ Game::Game()
       m_hintFont(assets::loadFont("Anton.ttf", 22.0f))
 {
     // Static labels are rendered once and cached
-    m_gameOverLabel.setText(m_renderer.get(), m_titleFont.get(), "GAME OVER", {255, 50, 50, 255});
+    m_gameOverLabel.setText(m_renderer.get(), m_titleFont.get(), "GAME OVER", cfg::red);
     m_restartLabel.setText(m_renderer.get(), m_hintFont.get(),
-                           "Press Space or Left Click to Restart", white);
+                           "Press Space or Left Click to Restart", cfg::white);
     m_readyLabel.setText(m_renderer.get(), m_hintFont.get(),
-                         "Press Space or Click to Start  (P: pause, F11: fullscreen)", white);
-    m_pausedLabel.setText(m_renderer.get(), m_titleFont.get(), "PAUSED", white);
+                         "Press Space or Click to Start  (P: pause, F11: fullscreen)", cfg::black);
+    m_pausedLabel.setText(m_renderer.get(), m_titleFont.get(), "PAUSED", cfg::white);
 
     spawnInitialPipes();
 }

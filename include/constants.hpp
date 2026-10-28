@@ -36,4 +36,9 @@ namespace cfg {
 
     // Minimum distance between the pipe gap and the ceiling/ground
     constexpr float pipeMargin = 80.0f;
+
+    // Text colors
+    constexpr SDL_Color black{10, 10, 10, 255};  
+    constexpr SDL_Color white{255, 255, 255, 255};
+    constexpr SDL_Color red{255, 50, 50, 255};
 }
