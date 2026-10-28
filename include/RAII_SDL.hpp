@@ -55,12 +55,11 @@ namespace raii
         public:
             SdlContext() {
                 if (!SDL_Init(SDL_INIT_VIDEO)) {
-                    throw std::runtime_error(std::string(" Error initializing TTF: ") + SDL_GetError());
+                    // Fixed: the message used to say "TTF" by mistake
+                    throw std::runtime_error(std::string("Error initializing SDL: ") + SDL_GetError());
                 }
             }
-            ~SdlContext() {
-                SDL_Quit();
-            }
+            ~SdlContext() { SDL_Quit(); }
             SdlContext(const SdlContext&) = delete;
             SdlContext& operator=(const SdlContext&) = delete;
     };

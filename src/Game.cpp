@@ -1,323 +1,258 @@
 #include "Game.hpp"
-#include <SDL3_image/SDL_image.h>
+#include "Assets.hpp"
+#include <algorithm>
 #include <stdexcept>
-#include <iostream>
-#include <cstddef>
+#include <string>
 
 namespace {
     raii::Window createWindow() {
-        SDL_Window* window = SDL_CreateWindow(
-            "Flappy Bird",
-            win_W,
-            win_H,
-            SDL_WINDOW_RESIZABLE
-        );
+        raii::Window window(SDL_CreateWindow("Flappy Bird", cfg::worldW, cfg::worldH,
+                                             SDL_WINDOW_RESIZABLE));
         if (!window) {
-            throw std::runtime_error(std::string("Failed to create SDL_Window: ") + SDL_GetError());
+            throw std::runtime_error(std::string("Failed to create window: ") + SDL_GetError());
         }
-        return raii::Window(window);
+        return window;
     }
 
     raii::Renderer createRenderer(SDL_Window* window) {
-        SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
+        raii::Renderer renderer(SDL_CreateRenderer(window, nullptr));
         if (!renderer) {
-            throw std::runtime_error(std::string("Failed to create SDL_Renderer: ") + SDL_GetError());
+            throw std::runtime_error(std::string("Failed to create renderer: ") + SDL_GetError());
         }
-        SDL_SetRenderVSync(renderer, 1);
+        SDL_SetRenderVSync(renderer.get(), 1);
 
-        // Disable fixed logical presentation to allow true full-window dynamic scaling
-        SDL_SetRenderLogicalPresentation(
-            renderer,
-            0,
-            0,
-            SDL_LOGICAL_PRESENTATION_DISABLED
-        );
-
-        return raii::Renderer(renderer);
+        // Fixed logical world scaled to any window size, keeping aspect ratio
+        SDL_SetRenderLogicalPresentation(renderer.get(), cfg::worldW, cfg::worldH,
+                                         SDL_LOGICAL_PRESENTATION_LETTERBOX);
+        SDL_SetRenderDrawBlendMode(renderer.get(), SDL_BLENDMODE_BLEND);
+        return renderer;
     }
+
+    bool intersects(const SDL_FRect& a, const SDL_FRect& b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x &&
+               a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    constexpr SDL_Color white{255, 255, 255, 255};
 }
 
 Game::Game()
-    : m_sdlContext(),
-      m_ttfContext(),
-      m_window(createWindow()),
+    : m_window(createWindow()),
       m_renderer(createRenderer(m_window.get())),
-      m_scoreSystem(m_renderer.get(), "assets/Yuyu.ttf", 28.0f, "highscore.txt"),
-      m_player(m_renderer.get())
-{
-    // Load fonts for Game Over HUD
-    TTF_Font* goFont = TTF_OpenFont("assets/Bitcount.ttf", 72.0f);
-    TTF_Font* rFont  = TTF_OpenFont("assets/Anton.ttf", 22.0f);
-    if (!goFont || !rFont) {
-        throw std::runtime_error("Failed to load game over / restart fonts!");
-    }
-    m_gameOverFont.reset(goFont);
-    m_restartFont.reset(rFont);
+      m_scoreSystem(m_renderer.get(), assets::loadFont("Yuyu.ttf", 28.0f),
+                    assets::savePath("highscore.txt")),
+      m_player(m_renderer.get()),
+      m_titleFont(assets::loadFont("Bitcount.ttf", 72.0f)),
+      m_hintFont(assets::loadFont("Anton.ttf", 22.0f)) {
 
-    // Spawn multiple pipes spaced horizontally (6 pipes with comfortable spacing)
-    const int initialPipeCount = 6;
-    const float pipeSpacing    = 380.0f;
-    const float gapSize        = 240.0f;
-    const float startOffsetX   = static_cast<float>(win_W) + 100.0f;
+    // Static labels are rendered once and cached
+    m_gameOverLabel.setText(m_renderer.get(), m_titleFont.get(), "GAME OVER", {255, 50, 50, 255});
+    m_restartLabel.setText(m_renderer.get(), m_hintFont.get(),
+                           "Press Space or Left Click to Restart", white);
+    m_readyLabel.setText(m_renderer.get(), m_hintFont.get(),
+                         "Press Space or Click to Start  (P: pause, F11: fullscreen)", white);
+    m_pausedLabel.setText(m_renderer.get(), m_titleFont.get(), "PAUSED", white);
 
-    for (int i = 0; i < initialPipeCount; ++i) {
-        float spawnX = startOffsetX + (i * pipeSpacing);
-        m_pipes.emplace_back(
-            spawnX,
-            80.0f,
-            gapSize,
-            -200.0f,
-            static_cast<float>(win_H)
-        );
+    spawnInitialPipes();
+}
+
+void Game::spawnInitialPipes() {
+    m_pipes.clear();
+    m_pipes.reserve(cfg::pipeCount);
+    const float startX = static_cast<float>(cfg::worldW) + 100.0f;
+    for (int i = 0; i < cfg::pipeCount; ++i) {
+        m_pipes.emplace_back(startX + static_cast<float>(i) * cfg::pipeSpacing);
     }
 }
 
+float Game::currentPipeSpeed() const {
+    // Difficulty grows with score up to a cap
+    const float speed = cfg::pipeBaseSpeed +
+                        static_cast<float>(m_scoreSystem.score()) * cfg::pipeSpeedPerPoint;
+    return std::min(speed, cfg::pipeMaxSpeed);
+}
+
 void Game::run() {
-    Uint64 lastTime = SDL_GetTicks();
+    // High-resolution timer + fixed-step physics for deterministic behavior
+    const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
+    Uint64 last = SDL_GetPerformanceCounter();
+    float accumulator = 0.0f;
 
     while (m_isRunning) {
-        Uint64 currentTime = SDL_GetTicks();
-        float deltaTime = static_cast<float>(currentTime - lastTime) / 1000.0f;
-        lastTime = currentTime;
-
-        if (deltaTime > 0.1f) {
-            deltaTime = 0.1f;
-        }
+        const Uint64 now = SDL_GetPerformanceCounter();
+        float frameTime = static_cast<float>(static_cast<double>(now - last) / freq);
+        last = now;
+        frameTime = std::min(frameTime, cfg::maxFrameTime);
 
         processEvents();
-        update(deltaTime);
+
+        accumulator += frameTime;
+        while (accumulator >= cfg::fixedStep) {
+            update(cfg::fixedStep);
+            accumulator -= cfg::fixedStep;
+        }
+
         render();
     }
 }
 
 void Game::processEvents() {
     SDL_Event event;
-
     while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_QUIT) {
+        switch (event.type) {
+        case SDL_EVENT_QUIT:
             m_isRunning = false;
-        } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-            // Update win_W and win_H dynamically when window is resized or maximized
-            int w = 0;
-            int h = 0;
-            SDL_GetWindowSize(m_window.get(), &w, &h);
-            win_W = w;
-            win_H = h;
-        } else if (event.type == SDL_EVENT_KEY_DOWN) {
-            if (event.key.key == SDLK_SPACE) {
-                if (m_isGameOver) {
-                    resetGame();
-                } else {
-                    m_player.jump();
-                }
+            break;
+
+        case SDL_EVENT_KEY_DOWN:
+            if (event.key.repeat) break; // ignore held keys
+            switch (event.key.key) {
+            case SDLK_SPACE:
+            case SDLK_UP:     handleAction(); break;
+            case SDLK_P:      togglePause(); break;
+            case SDLK_F11:    toggleFullscreen(); break;
+            case SDLK_ESCAPE: m_isRunning = false; break;
+            default: break;
             }
-        } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-            if (event.button.button == SDL_BUTTON_LEFT) {
-                if (m_isGameOver) {
-                    resetGame();
-                } else {
-                    m_player.jump();
-                }
-            }
+            break;
+
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            if (event.button.button == SDL_BUTTON_LEFT) handleAction();
+            break;
+
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            if (m_state == State::Playing) m_state = State::Paused;
+            break;
+
+        default: break;
         }
     }
 }
 
-void Game::update(float deltaTime) {
-    if (m_isGameOver) {
+void Game::handleAction() {
+    switch (m_state) {
+    case State::Ready:
+        m_state = State::Playing;
+        m_player.jump();
+        break;
+    case State::Playing:
+        m_player.jump();
+        break;
+    case State::Paused:
+        m_state = State::Playing;
+        break;
+    case State::GameOver:
+        if (m_cooldown <= 0.0f) resetGame();
+        break;
+    }
+}
+
+void Game::togglePause() {
+    if (m_state == State::Playing)      m_state = State::Paused;
+    else if (m_state == State::Paused)  m_state = State::Playing;
+}
+
+void Game::toggleFullscreen() {
+    const bool isFullscreen = (SDL_GetWindowFlags(m_window.get()) & SDL_WINDOW_FULLSCREEN) != 0;
+    SDL_SetWindowFullscreen(m_window.get(), !isFullscreen);
+}
+
+void Game::gameOver() {
+    m_state = State::GameOver;
+    m_cooldown = cfg::restartCooldown;
+    m_scoreSystem.commit(); // save high score once
+}
+
+void Game::update(float dt) {
+    if (m_state == State::GameOver) {
+        m_cooldown = std::max(0.0f, m_cooldown - dt);
+        return;
+    }
+    if (m_state != State::Playing) return;
+
+    m_player.update(dt);
+    const SDL_FRect box = m_player.hitbox();
+
+    // Ground collision
+    if (box.y + box.h >= cfg::playHeight) {
+        gameOver();
         return;
     }
 
-    m_player.update(deltaTime);
+    const float speed = currentPipeSpeed();
 
-    SDL_FRect playerBounds = m_player.getBounds();
+    for (Pipe& pipe : m_pipes) {
+        pipe.update(dt, speed);
 
-    if (playerBounds.y <= 0.0f ||
-        playerBounds.y + playerBounds.h >= static_cast<float>(win_H)) {
-        m_isGameOver = true;
-    }
-
-    for (std::size_t i = 0; i < m_pipes.size();) {
-        Pipe& pipe = m_pipes[i];
-
-        pipe.update(
-            deltaTime,
-            static_cast<float>(win_W),
-            static_cast<float>(win_H)
-        );
-
-        if (!pipe.isPassed() &&
-            pipe.x() + pipe.width() < playerBounds.x) {
+        if (!pipe.isPassed() && pipe.right() < box.x) {
             pipe.setPassed(true);
             m_scoreSystem.addPoint();
         }
 
-        SDL_FRect topRect = pipe.topRect();
-        SDL_FRect bottomRect = pipe.bottomRect(static_cast<float>(win_H));
-
-        auto checkIntersect = [](const SDL_FRect& a, const SDL_FRect& b) {
-            return (
-                a.x < b.x + b.w &&
-                a.x + a.w > b.x &&
-                a.y < b.y + b.h &&
-                a.y + a.h > b.y
-            );
-        };
-
-        if (checkIntersect(playerBounds, topRect) ||
-            checkIntersect(playerBounds, bottomRect)) {
-            m_isGameOver = true;
+        if (intersects(box, pipe.topRect()) || intersects(box, pipe.bottomRect())) {
+            gameOver();
+            return;
         }
+    }
 
-        // Properly recycle and space out pipes when they exit the screen
-        if (pipe.x() + pipe.width() < 0.0f) {
-            m_pipes.erase(m_pipes.begin() + static_cast<std::ptrdiff_t>(i));
+    // Recycle off-screen pipes behind the furthest one (no erase / realloc)
+    for (Pipe& pipe : m_pipes) {
+        if (!pipe.isOffscreen()) continue;
 
-            // Find the furthest pipe's X coordinate to maintain consistent spacing
-            float maxX = static_cast<float>(win_W);
-
-            for (const auto& remainingPipe : m_pipes) {
-                if (remainingPipe.x() > maxX) {
-                    maxX = remainingPipe.x();
-                }
-            }
-
-            const float pipeSpacing = 380.0f;
-            const float gapSize     = 240.0f;
-
-            m_pipes.emplace_back(
-                maxX + pipeSpacing,
-                80.0f,
-                gapSize,
-                -200.0f,
-                static_cast<float>(win_H)
-            );
-        } else {
-            ++i;
-        }
+        float maxX = 0.0f;
+        for (const Pipe& other : m_pipes) maxX = std::max(maxX, other.x());
+        pipe.reset(maxX + cfg::pipeSpacing);
     }
 }
 
 void Game::render() {
-    SDL_SetRenderDrawColor(m_renderer.get(), 200, 250, 255, 255);
-    SDL_RenderClear(m_renderer.get());
+    SDL_Renderer* r = m_renderer.get();
+    const float cx = static_cast<float>(cfg::worldW) / 2.0f;
+    const float cy = static_cast<float>(cfg::worldH) / 2.0f;
 
-    for (auto& pipe : m_pipes) {
-        pipe.render(m_renderer.get(), static_cast<float>(win_H));
+    // Clear the whole target (letterbox bars included)
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+    SDL_RenderClear(r);
+
+    // Sky
+    SDL_SetRenderDrawColor(r, 200, 250, 255, 255);
+    SDL_FRect sky{0.0f, 0.0f, static_cast<float>(cfg::worldW), static_cast<float>(cfg::worldH)};
+    SDL_RenderFillRect(r, &sky);
+
+    for (const Pipe& pipe : m_pipes) pipe.render(r);
+
+    // Ground
+    SDL_SetRenderDrawColor(r, 222, 184, 135, 255);
+    SDL_FRect ground{0.0f, cfg::playHeight, static_cast<float>(cfg::worldW), cfg::groundHeight};
+    SDL_RenderFillRect(r, &ground);
+
+    m_player.render(r);
+    m_scoreSystem.render(r);
+
+    if (m_state == State::Ready) {
+        m_readyLabel.renderCentered(r, cx, cy + 100.0f);
     }
 
-    m_player.render(m_renderer.get());
-    m_scoreSystem.render(m_renderer.get());
+    if (m_state == State::Paused || m_state == State::GameOver) {
+        SDL_SetRenderDrawColor(r, 0, 0, 0, 150);
+        SDL_FRect overlay{0.0f, 0.0f, static_cast<float>(cfg::worldW),
+                          static_cast<float>(cfg::worldH)};
+        SDL_RenderFillRect(r, &overlay);
 
-    if (m_isGameOver) {
-        SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, 150);
-
-        // Fullscreen dynamic overlay based on live win_W and win_H
-        SDL_FRect overlay{
-            0.0f,
-            0.0f,
-            static_cast<float>(win_W),
-            static_cast<float>(win_H)
-        };
-        SDL_RenderFillRect(m_renderer.get(), &overlay);
-
-        if (!m_gameOverTex.get()) {
-            SDL_Surface* goSurf = TTF_RenderText_Blended(
-                m_gameOverFont.get(),
-                "GAME OVER",
-                0,
-                {255, 50, 50, 255}
-            );
-
-            if (goSurf) {
-                m_gameOverTexW = goSurf->w;
-                m_gameOverTexH = goSurf->h;
-                m_gameOverTex.reset(
-                    SDL_CreateTextureFromSurface(m_renderer.get(), goSurf)
-                );
-                SDL_DestroySurface(goSurf);
-            }
-        }
-
-        if (!m_restartTex.get()) {
-            SDL_Surface* rSurf = TTF_RenderText_Blended(
-                m_restartFont.get(),
-                "Press Space or Left Click to Restart",
-                0,
-                {255, 255, 255, 255}
-            );
-
-            if (rSurf) {
-                m_restartTexW = rSurf->w;
-                m_restartTexH = rSurf->h;
-                m_restartTex.reset(
-                    SDL_CreateTextureFromSurface(m_renderer.get(), rSurf)
-                );
-                SDL_DestroySurface(rSurf);
-            }
-        }
-
-        // Perfectly centered Game Over HUD elements
-        if (m_gameOverTex.get()) {
-            SDL_FRect dstGo{
-                (static_cast<float>(win_W) -
-                 static_cast<float>(m_gameOverTexW)) / 2.0f,
-                (static_cast<float>(win_H) / 2.0f) - 60.0f,
-                static_cast<float>(m_gameOverTexW),
-                static_cast<float>(m_gameOverTexH)
-            };
-
-            SDL_RenderTexture(
-                m_renderer.get(),
-                m_gameOverTex.get(),
-                nullptr,
-                &dstGo
-            );
-        }
-
-        if (m_restartTex.get()) {
-            SDL_FRect dstRestart{
-                (static_cast<float>(win_W) -
-                 static_cast<float>(m_restartTexW)) / 2.0f,
-                (static_cast<float>(win_H) / 2.0f) + 20.0f,
-                static_cast<float>(m_restartTexW),
-                static_cast<float>(m_restartTexH)
-            };
-
-            SDL_RenderTexture(
-                m_renderer.get(),
-                m_restartTex.get(),
-                nullptr,
-                &dstRestart
-            );
+        if (m_state == State::Paused) {
+            m_pausedLabel.renderCentered(r, cx, cy - 60.0f);
+        } else {
+            m_gameOverLabel.renderCentered(r, cx, cy - 60.0f);
+            m_restartLabel.renderCentered(r, cx, cy + 20.0f);
         }
     }
 
-    SDL_RenderPresent(m_renderer.get());
+    SDL_RenderPresent(r);
 }
 
 void Game::resetGame() {
     m_player.reset();
-    m_pipes.clear();
-
-    const int initialPipeCount = 6;
-    const float pipeSpacing    = 380.0f;
-    const float gapSize        = 240.0f;
-    const float startOffsetX   = static_cast<float>(win_W) + 100.0f;
-
-    for (int i = 0; i < initialPipeCount; ++i) {
-        float spawnX = startOffsetX + (i * pipeSpacing);
-
-        m_pipes.emplace_back(
-            spawnX,
-            80.0f,
-            gapSize,
-            -200.0f,
-            static_cast<float>(win_H)
-        );
-    }
-
+    spawnInitialPipes();
     m_scoreSystem.reset();
-    m_isGameOver = false;
+    m_state = State::Ready;
 }

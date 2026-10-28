@@ -1,50 +1,29 @@
 #pragma once
 #include <SDL3/SDL.h>
 
-class Pipe
-{
-    public:
-        Pipe(
-            float startX,
-            float width,
-            float gapHeight,
-            float speedX,
-            float windowH,
-            float minEdgePadding = 50.0f);
+class Pipe {
+public:
+    explicit Pipe(float startX);
 
-        // New function to reset the pipe without having to create a new object
-        void reset(float startX, float windowH);
+    // Reuse the pipe at a new position with a new random gap
+    void reset(float startX);
+    void update(float deltaSeconds, float speed);
+    void render(SDL_Renderer* renderer) const;
 
-        // Every frame is called
-        void update(float deltaSeconds, float windowW, float windowH);
+    SDL_FRect topRect() const;
+    SDL_FRect bottomRect() const;
 
-        // drawing pipes
-        void render(SDL_Renderer* renderer, float windowH) const;
+    float x() const { return m_x; }
+    float right() const;
+    bool isOffscreen() const { return right() < 0.0f; }
 
-        // pipes rect
-        SDL_FRect topRect() const;
-        SDL_FRect bottomRect(float windowH) const;
+    bool isPassed() const { return m_passed; }
+    void setPassed(bool passed) { m_passed = passed; }
 
-        float x() const { return m_x; }
-        float width() const { return m_width; }
-        float gapHeight() const { return m_gapHeight; }
-        float topHeight() const { return m_topHeight; }
+private:
+    void randomizeGap();
 
-        bool isPassed() const { return m_passed; }
-        void setPassed(bool passed) { m_passed = passed; }
-
-    private:
-        void respawn(float windowW, float windowH);
-        void randomizeTopHeight(float windowH);
-        bool m_passed = false;
-
-        float m_x = 0.0f;
-        float m_width = 0.0f;
-        float m_topHeight = 0.0f;
-        float m_gapHeight = 0.0f;
-        float m_speedX = 0.0f;
-
-        // Minimum distance from top/bottom edge to prevent pipes from becoming impossible to pass through
-        float m_minEdgePadding = 50.0f;
-
+    float m_x = 0.0f;
+    float m_topHeight = 0.0f;
+    bool  m_passed = false;
 };

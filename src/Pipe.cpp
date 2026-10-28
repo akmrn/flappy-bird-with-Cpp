@@ -1,79 +1,49 @@
 #include "Pipe.hpp"
-#include <algorithm> // std::clamp
-#include <cstdlib>   // rand, RAND_MAX
+#include "constants.hpp"
+#include <random>
 
-static float randomRange(float minVal, float maxVal)
-{
-    float t = (float)rand() / (float) RAND_MAX; // [0,1]
-    return minVal + t * (maxVal - minVal);
+namespace {
+    // Properly seeded engine instead of unseeded rand()
+    std::mt19937& rng() {
+        static std::mt19937 engine{std::random_device{}()};
+        return engine;
+    }
 }
 
-Pipe::Pipe(float startX, float width, float gapHeight, float speedX, float windowH, float minEdgePadding):
-    m_x(startX),
-    m_width(width),
-    m_gapHeight(gapHeight),
-    m_speedX(speedX),
-    m_minEdgePadding(minEdgePadding)
-{
-    randomizeTopHeight(windowH);
-}
+Pipe::Pipe(float startX) { reset(startX); }
 
-void Pipe::reset(float startX, float windowH)
-{
+void Pipe::reset(float startX) {
     m_x = startX;
     m_passed = false;
-    randomizeTopHeight(windowH);
+    randomizeGap();
 }
 
-void Pipe::update(float deltaSeconds, float windowW, float windowH)
-{
-    (void)windowW;
-    (void)windowH;
-
-    m_x += m_speedX * deltaSeconds;
-    // Removed automatic respawn here so Game can manage precise spacing!
+void Pipe::update(float deltaSeconds, float speed) {
+    m_x -= speed * deltaSeconds;
 }
 
-void Pipe::render(SDL_Renderer* renderer, float windowH) const
-{
+float Pipe::right() const { return m_x + cfg::pipeWidth; }
+
+void Pipe::render(SDL_Renderer* renderer) const {
     SDL_SetRenderDrawColor(renderer, 34, 139, 34, 255);
-
-    SDL_FRect top = topRect();
-    SDL_FRect bot = bottomRect(windowH);
-
+    const SDL_FRect top = topRect();
+    const SDL_FRect bottom = bottomRect();
     SDL_RenderFillRect(renderer, &top);
-    SDL_RenderFillRect(renderer, &bot);
+    SDL_RenderFillRect(renderer, &bottom);
 }
 
-SDL_FRect Pipe::topRect() const
-{
-    return SDL_FRect { m_x, 0.0f, m_width, m_topHeight };
+SDL_FRect Pipe::topRect() const {
+    return SDL_FRect{m_x, 0.0f, cfg::pipeWidth, m_topHeight};
 }
 
-SDL_FRect Pipe::bottomRect(float windowH) const
-{
-    float bottomY = m_topHeight + m_gapHeight;
-    float bottomH = windowH - bottomY;
-    return SDL_FRect{ m_x, bottomY, m_width, bottomH };
+SDL_FRect Pipe::bottomRect() const {
+    const float y = m_topHeight + cfg::pipeGap;
+    return SDL_FRect{m_x, y, cfg::pipeWidth, cfg::playHeight - y};
 }
 
-void Pipe::respawn(float windowW, float windowH)
-{
-    m_x = windowW;
-    randomizeTopHeight(windowH);
-    m_passed = false;
-}
-
-void Pipe::randomizeTopHeight(float windowH)
-{
-    float minTop = m_minEdgePadding;
-    float maxTop = windowH - m_gapHeight - m_minEdgePadding;
-
-    if(maxTop < minTop)
-    {
-        maxTop = minTop;
-    }
-
-    m_topHeight = randomRange(minTop, maxTop);
-    m_topHeight = std::clamp(m_topHeight, minTop, maxTop);
+void Pipe::randomizeGap() {
+    const float minTop = cfg::pipeEdgePadding;
+    const float maxTop = cfg::playHeight - cfg::pipeGap - cfg::pipeEdgePadding;
+    std::uniform_real_distribution<float> dist(minTop, maxTop);
+    m_topHeight = dist(rng());
 }

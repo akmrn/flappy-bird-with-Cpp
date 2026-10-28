@@ -1,76 +1,56 @@
 #include "ScoreSystem.hpp"
 #include <fstream>
-#include <stdexcept>
-#include <string>
+#include <iostream>
+#include <utility>
 
-ScoreSystem::ScoreSystem(SDL_Renderer* renderer, const std::string& fontPath, float fontSize, const std::string& savePath)
-    : m_renderer(renderer), m_savePath(savePath) {
-    
-    // Load high score from disk
+ScoreSystem::ScoreSystem(SDL_Renderer* renderer, raii::Font font, const std::string& savePath)
+    : m_renderer(renderer), m_savePath(savePath), m_font(std::move(font)) {
     loadHighScore();
-
-    // Load font using RAII wrapper
-    TTF_Font* rawFont = TTF_OpenFont(fontPath.c_str(), fontSize);
-    if (!rawFont) {
-        throw std::runtime_error(std::string("Failed to load score font: ") + SDL_GetError());
-    }
-    m_font.reset(rawFont);
-
-    // Generate initial texture for "Score: 0"
-    updateTexture();
+    refreshLabel();
 }
 
 void ScoreSystem::addPoint() {
-    m_score++;
+    ++m_score;
     if (m_score > m_highScore) {
         m_highScore = m_score;
-        saveHighScore();
+        m_dirty = true;
     }
-    updateTexture();
+    refreshLabel();
 }
 
 void ScoreSystem::reset() {
     m_score = 0;
-    updateTexture();
+    refreshLabel();
+}
+
+void ScoreSystem::commit() {
+    if (m_dirty) {
+        saveHighScore();
+        m_dirty = false;
+    }
 }
 
 void ScoreSystem::render(SDL_Renderer* renderer) {
-    if (!m_scoreTexture) return;
-
-    SDL_FRect dstRect = { 10.0f, 10.0f, static_cast<float>(m_texW), static_cast<float>(m_texH) };
-    SDL_RenderTexture(renderer, m_scoreTexture.get(), nullptr, &dstRect);
+    m_label.render(renderer, 10.0f, 10.0f);
 }
 
-void ScoreSystem::updateTexture() {
-    std::string text = "Score: " + std::to_string(m_score) + "  High: " + std::to_string(m_highScore);
-    SDL_Color color = { 0, 0, 0, 255 };
-
-    // Create temporary surface
-    SDL_Surface* rawSurface = TTF_RenderText_Blended(m_font.get(), text.c_str(), 0, color);
-    if (!rawSurface) return;
-
-    // Manage surface with RAII so it frees automatically when out of scope
-    raii::Surface surface(rawSurface);
-    m_texW = surface->w;
-    m_texH = surface->h;
-
-    SDL_Texture* rawTexture = SDL_CreateTextureFromSurface(m_renderer, surface.get());
-    if (!rawTexture) return;
-
-    // Transfer ownership to m_scoreTexture (automatically destroys previous texture!)
-    m_scoreTexture.reset(rawTexture);
+void ScoreSystem::refreshLabel() {
+    m_label.setText(m_renderer, m_font.get(),
+                    "Score: " + std::to_string(m_score) + "  Best: " + std::to_string(m_highScore),
+                    SDL_Color{255, 255, 255, 255});
 }
 
 void ScoreSystem::loadHighScore() {
     std::ifstream file(m_savePath);
-    if (file.is_open()) {
-        file >> m_highScore;
+    int value = 0;
+    if (file >> value && value > 0) {
+        m_highScore = value;
     }
 }
 
-void ScoreSystem::saveHighScore() {
-    std::ofstream file(m_savePath);
-    if (file.is_open()) {
-        file << m_highScore;
+void ScoreSystem::saveHighScore() const {
+    std::ofstream file(m_savePath, std::ios::trunc);
+    if (!(file << m_highScore)) {
+        std::cerr << "Warning: could not save high score to " << m_savePath << "\n";
     }
 }

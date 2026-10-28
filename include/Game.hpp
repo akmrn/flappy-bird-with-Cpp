@@ -1,11 +1,11 @@
 #pragma once
 
 #include <vector>
-#include <string>
 #include "RAII_SDL.hpp"
 #include "Pipe.hpp"
 #include "ScoreSystem.hpp"
 #include "player.hpp"
+#include "TextLabel.hpp"
 #include "constants.hpp"
 
 class Game {
@@ -13,19 +13,26 @@ public:
     Game();
     ~Game() = default;
 
-    // Prevent copy/move semantics for the top-level application
     Game(const Game&) = delete;
     Game& operator=(const Game&) = delete;
 
     void run();
 
 private:
+    enum class State { Ready, Playing, Paused, GameOver };
+
     void processEvents();
-    void update(float deltaTime);
+    void handleAction();      // jump / start / resume / restart
+    void togglePause();
+    void toggleFullscreen();
+    void update(float dt);
     void render();
     void resetGame();
+    void gameOver();
+    void spawnInitialPipes();
+    float currentPipeSpeed() const;
 
-    // 1. Subsystem contexts (Initialized first, destroyed last)
+    // 1. Subsystem contexts (initialized first, destroyed last)
     raii::SdlContext m_sdlContext;
     raii::TtfContext m_ttfContext;
 
@@ -33,22 +40,21 @@ private:
     raii::Window m_window;
     raii::Renderer m_renderer;
 
-    // 3. Game subsystems & entities (Initialized AFTER renderer)
+    // 3. Game objects (need the renderer)
     ScoreSystem m_scoreSystem;
     Player m_player;
     std::vector<Pipe> m_pipes;
 
-    // 4. Fonts and UI Textures for Game Over HUD
-    raii::Font m_gameOverFont;
-    raii::Font m_restartFont;
-    raii::Texture m_gameOverTex;
-    raii::Texture m_restartTex;
-    int m_gameOverTexW = 0;
-    int m_gameOverTexH = 0;
-    int m_restartTexW = 0;
-    int m_restartTexH = 0;
+    // 4. UI (fonts must outlive nothing; labels own cached textures)
+    raii::Font m_titleFont;
+    raii::Font m_hintFont;
+    TextLabel m_gameOverLabel;
+    TextLabel m_restartLabel;
+    TextLabel m_readyLabel;
+    TextLabel m_pausedLabel;
 
-    // 5. Game state & timing
+    // 5. State
+    State m_state = State::Ready;
     bool m_isRunning = true;
-    bool m_isGameOver = false;
+    float m_cooldown = 0.0f; // blocks accidental instant restart
 };
