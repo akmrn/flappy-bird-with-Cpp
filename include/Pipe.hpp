@@ -8,7 +8,9 @@ public:
     // Reuse the pipe at a new position with a new random gap
     void reset(float startX);
     void update(float deltaSeconds, float speed);
-    void render(SDL_Renderer* renderer) const;
+    
+    // If texture is null, plain rectangles are drawn.
+    void render(SDL_Renderer* renderer, SDL_Texture* texture) const;
 
     SDL_FRect topRect() const;
     SDL_FRect bottomRect() const;
