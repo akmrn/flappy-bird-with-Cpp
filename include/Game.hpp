@@ -10,6 +10,7 @@
 #include "TextureCache.hpp"
 #include "Skin.hpp"
 #include "constants.hpp"
+#include "Background.hpp"
 
 class Game {
 public:
@@ -52,6 +53,8 @@ private:
     SDL_Texture* m_pipeTex = nullptr;
     SDL_Texture* m_backgroundTex = nullptr;
     SDL_Texture* m_groundTex = nullptr;
+    SDL_Texture* m_scoreBoxTex = nullptr;
+    Background m_background;
 
     // 4. Game objects (Ground must come after m_groundTex)
     Ground m_ground;

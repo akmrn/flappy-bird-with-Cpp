@@ -2,38 +2,34 @@
 
 #include <SDL3/SDL.h>
 
-// A pair of pipes (top + bottom) with a gap between them.
-// Pure logic and drawing; textures are borrowed and never owned here.
-class Pipe
-{
+// One pair of pipes (top + bottom) with a gap between them.
+class Pipe {
 public:
-    // Creates a pipe at startX with a random gap position
-    explicit Pipe(float startX);
+    explicit Pipe(float x);
 
-    // Moves the pipe back to a new X and picks a new random gap position
-    void reset(float startX);
-
-    // Scrolls the pipe left by speed * dt
+    // Move left by speed * dt
     void update(float dt, float speed);
 
-    // Draws both pipes. 'tex' may be nullptr (green rectangles are used then)
-    void render(SDL_Renderer* renderer, SDL_Texture* tex) const;
+    // Draw with an image; falls back to rectangles if texture is nullptr
+    void render(SDL_Renderer* renderer, SDL_Texture* texture) const;
 
-    // Collision / layout rectangles
+    // Move to a new x position, pick a new gap and clear the "passed" flag
+    void reset(float x);
+
+    // Collision rectangles (base width, not the widened visual)
     SDL_FRect topRect() const;
     SDL_FRect bottomRect() const;
 
     float x() const { return m_x; }
     float right() const;
     bool isOffscreen() const;
-
     bool isPassed() const { return m_passed; }
     void setPassed(bool passed) { m_passed = passed; }
 
 private:
-    void randomizeTopHeight();
+    void randomizeGap();
 
     float m_x = 0.0f;
-    float m_topHeight = 0.0f;
+    float m_gapY = 0.0f;   // top edge of the gap
     bool m_passed = false;
 };

@@ -46,9 +46,11 @@ Game::Game()
       m_pipeTex(m_textures.tryGet(skin::pipe)),
       m_backgroundTex(m_textures.tryGet(skin::background)),
       m_groundTex(m_textures.tryGet(skin::ground)),
+      m_scoreBoxTex(m_textures.tryGet(skin::scoreBox)),
+      m_background(m_backgroundTex, 0.3f),
       m_ground(m_groundTex),
-      m_scoreSystem(m_renderer.get(), assets::loadFont("Yuyu.ttf", 28.0f),
-                    assets::savePath("highscore.txt")),
+      m_scoreSystem(m_renderer.get(), assets::loadFont("Yuyu.ttf", 22.0f),
+                    assets::savePath("highscore.txt"), m_scoreBoxTex),
       m_player(m_textures.get(skin::bird1), m_textures.get(skin::bird2)),
       m_titleFont(assets::loadFont("Bitcount.ttf", 72.0f)),
       m_hintFont(assets::loadFont("Anton.ttf", 22.0f))
@@ -181,6 +183,7 @@ void Game::update(float dt) {
     if (m_state == State::Ready) {
         // Slow idle scroll so the world feels alive before the first jump
         m_ground.update(dt, cfg::pipeBaseSpeed);
+        m_background.update(dt, cfg::pipeBaseSpeed);
         return;
     }
     if (m_state != State::Playing) return; // Paused: nothing moves
@@ -189,6 +192,7 @@ void Game::update(float dt) {
 
     // Ground scrolls at exactly the same speed as the pipes
     m_ground.update(dt, speed);
+    m_background.update(dt, speed); // parallax layer, slower than the pipes (factor set in Background)
 
     m_player.update(dt);
     const SDL_FRect box = m_player.hitbox();
@@ -231,24 +235,14 @@ void Game::render() {
     const float cx = worldW / 2.0f;
     const float cy = worldH / 2.0f;
 
-    // Clear the whole target (letterbox bars included) with the background-like color
     SDL_SetRenderDrawColor(r, letterboxColor.r, letterboxColor.g, letterboxColor.b, 255);
     SDL_RenderClear(r);
 
-    // Background (image or solid sky color)
-    if (m_backgroundTex) {
-        SDL_FRect dst{0.0f, 0.0f, worldW, worldH};
-        SDL_RenderTexture(r, m_backgroundTex, nullptr, &dst);
-    } else {
-        SDL_SetRenderDrawColor(r, 200, 250, 255, 255);
-        SDL_FRect sky{0.0f, 0.0f, worldW, worldH};
-        SDL_RenderFillRect(r, &sky);
-    }
+    // Background, pipes, ground, then bird
+    m_background.render(r);
 
-    // Pipes
     for (const Pipe& pipe : m_pipes) pipe.render(r, m_pipeTex);
 
-    // Scrolling ground (drawn over the pipe bottoms)
     m_ground.render(r);
 
     m_player.render(r);
@@ -258,7 +252,6 @@ void Game::render() {
         m_readyLabel.renderCentered(r, cx, cy + 100.0f);
     }
 
-    // Dim the scene behind pause / game over text
     if (m_state == State::Paused || m_state == State::GameOver) {
         SDL_SetRenderDrawColor(r, 0, 0, 0, 150);
         SDL_FRect overlay{0.0f, 0.0f, worldW, worldH};
@@ -278,6 +271,7 @@ void Game::render() {
 void Game::resetGame() {
     m_player.reset();
     m_ground.reset();
+    m_background.reset();
     spawnInitialPipes();
     m_scoreSystem.reset();
     m_state = State::Ready;
